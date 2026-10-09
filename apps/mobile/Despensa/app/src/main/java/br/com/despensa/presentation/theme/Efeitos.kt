@@ -113,13 +113,13 @@ fun Modifier.escalaPress(inter: MutableInteractionSource, calmo: Boolean): Modif
 }
 
 /**
- * §(d) D1 — pontilhado de banca: grade de pontos Tinta 4%
- * (dark: CremeFeira 5%), raio 1dp, passo 24dp, só no fundo da tela
+ * §(d) D1 — pontilhado de banca: grade de pontos TintaMaré 4%
+ * (dark: BrancoMaré 5%), raio 1dp, passo 24dp, só no fundo da tela
  * (1x por tela, nunca por card, estático, custo ~0).
  * Substitui os blobs radiais neon — mesma assinatura p/ diff mínimo.
  */
 fun Modifier.fundoFeira(escuro: Boolean): Modifier = this.drawBehind {
-    val ponto = if (escuro) CremeFeira.copy(alpha = 0.05f) else Tinta.copy(alpha = 0.04f)
+    val ponto = if (escuro) BrancoMare.copy(alpha = 0.05f) else TintaMare.copy(alpha = 0.04f)
     val passo = 24.dp.toPx()
     val r = 1.dp.toPx()
     var y = 0f
@@ -135,7 +135,7 @@ fun Modifier.fundoFeira(escuro: Boolean): Modifier = this.drawBehind {
 
 /**
  * §(b) — sombra suave e quente (nunca dura deslocada).
- * Light: Tinta 8%/6% · Dark: Black 30%/20%. 1 shadow por card — permitido
+ * Light: TintaMaré 8%/6% · Dark: Black 30%/20%. 1 shadow por card — permitido
  * porque é 1 camada estática, sem animação por frame.
  */
 fun Modifier.sombraFeira(
@@ -145,8 +145,8 @@ fun Modifier.sombraFeira(
     elevation = 16.dp,
     shape = forma,
     clip = false,
-    ambientColor = if (escuro) Color.Black.copy(alpha = 0.30f) else Tinta.copy(alpha = 0.08f),
-    spotColor = if (escuro) Color.Black.copy(alpha = 0.20f) else Tinta.copy(alpha = 0.06f)
+    ambientColor = if (escuro) Color.Black.copy(alpha = 0.30f) else TintaMare.copy(alpha = 0.08f),
+    spotColor = if (escuro) Color.Black.copy(alpha = 0.20f) else TintaMare.copy(alpha = 0.06f)
 )
 
 /** E04 — atraso do stagger: 40ms por posição visível, teto 400ms. */
@@ -154,8 +154,8 @@ fun atrasoStagger(index: Int): Int = minOf(index * 40, 400)
 
 /**
  * E08 — skeleton fantasma do card (24dp, thumb fantasma círculo 64dp).
- * Recolorido p/ feira: base Tinta 6%/brilho 12% light
- * (dark: CremeFeira 8/18%). Shimmer só quando !calmo.
+ * Recolorido p/ maré (§07-paleta-v3): base TintaMaré 6%/brilho 12% light
+ * (dark: BrancoMaré 8/18%). Shimmer só quando !calmo.
  * Contenção: o infinito vive NESTE escopo (skeleton), nunca no item da lista.
  */
 @Composable
@@ -165,8 +165,8 @@ fun EsqueletoCard(
     descricao: String = "Carregando estoque"
 ) {
     val escuro = isSystemInDarkTheme()
-    val base = if (escuro) CremeFeira.copy(alpha = 0.08f) else Tinta.copy(alpha = 0.06f)
-    val brilho = if (escuro) CremeFeira.copy(alpha = 0.18f) else Tinta.copy(alpha = 0.12f)
+    val base = if (escuro) BrancoMare.copy(alpha = 0.08f) else TintaMare.copy(alpha = 0.06f)
+    val brilho = if (escuro) BrancoMare.copy(alpha = 0.18f) else TintaMare.copy(alpha = 0.12f)
 
     val brush = if (calmo) {
         null
@@ -220,42 +220,49 @@ fun EsqueletoCard(
 }
 
 /**
- * Anel de frescor do thumb 64dp (§b): cor por status.
- * FRESCO VerdeMenta · ATENÇÃO Mel · VENCEU PimentaQueimada · SEM CinzaSemente.
- * Dark: FRESCO VerdeFolhaClaro · ATENÇÃO MelClaro · VENCEU PimentaNoite.
+ * Anel de frescor do thumb 64dp (07-paleta-v3 §c): cor por status.
+ * FRESCO TurquesaProfunda · ATENÇÃO AmbarFeira · VENCEU VermelhoQueimado · SEM PetroleoSec.
+ * Dark: FRESCO TurquesaClara · ATENÇÃO AmbarClaro · VENCEU VermelhoNoite · SEM AzulCinza.
+ * (#0E9F8A VETADO como texto — permitido só como acento gráfico no anel 3dp;
+ * aqui usamos os tokens de leitura TurquesaProfunda/TurquesaClara.)
  */
 @Composable
 fun corAnelFrescor(status: br.com.despensa.domain.StatusValidade, escuro: Boolean): Color =
     when (status) {
         br.com.despensa.domain.StatusValidade.VENCIDO ->
-            if (escuro) PimentaNoite else PimentaQueimada
+            if (escuro) VermelhoNoite else VermelhoQueimado
         br.com.despensa.domain.StatusValidade.ATENCAO ->
-            if (escuro) MelClaro else Mel
+            if (escuro) AmbarClaro else AmbarFeira
         br.com.despensa.domain.StatusValidade.FRESCO ->
-            if (escuro) VerdeFolhaClaro else VerdeMenta
-        br.com.despensa.domain.StatusValidade.SEM_VALIDADE -> CinzaSemente
+            if (escuro) TurquesaClara else TurquesaProfunda
+        br.com.despensa.domain.StatusValidade.SEM_VALIDADE ->
+            if (escuro) AzulCinza else PetroleoSec
     }
 
-/** Cor de fundo do selo pílula por status (§b). */
+/** Cor de fundo do selo pílula por status (07-paleta-v3 §c). */
 @Composable
 fun corFundoSelo(status: br.com.despensa.domain.StatusValidade, escuro: Boolean): Color =
     when (status) {
         br.com.despensa.domain.StatusValidade.VENCIDO ->
-            if (escuro) PimentaNoite else PimentaQueimada
+            if (escuro) VermelhoNoite else VermelhoQueimado
         br.com.despensa.domain.StatusValidade.ATENCAO ->
-            if (escuro) MelClaro else Mel
-        br.com.despensa.domain.StatusValidade.FRESCO -> VerdeFundo
-        br.com.despensa.domain.StatusValidade.SEM_VALIDADE -> Areia
+            if (escuro) AmbarClaro else AmbarFeira
+        br.com.despensa.domain.StatusValidade.FRESCO ->
+            if (escuro) TurquesaClara else NevoaTurquesa
+        br.com.despensa.domain.StatusValidade.SEM_VALIDADE ->
+            if (escuro) CestoAzul else Nevoa
     }
 
-/** Cor do texto do selo pílula por status (§b). */
+/** Cor do texto do selo pílula por status (07-paleta-v3 §c). */
 @Composable
 fun corTextoSelo(status: br.com.despensa.domain.StatusValidade, escuro: Boolean): Color =
     when (status) {
         br.com.despensa.domain.StatusValidade.VENCIDO ->
-            if (escuro) VinhoNoite else Color.White
+            if (escuro) AzulNoite else Color.White
         br.com.despensa.domain.StatusValidade.ATENCAO ->
-            if (escuro) VinhoNoite else Tinta
-        br.com.despensa.domain.StatusValidade.FRESCO -> VerdeFolha
-        br.com.despensa.domain.StatusValidade.SEM_VALIDADE -> CafeClaro
+            if (escuro) AzulNoite else TintaMare
+        br.com.despensa.domain.StatusValidade.FRESCO ->
+            if (escuro) AzulNoite else TurquesaProfunda
+        br.com.despensa.domain.StatusValidade.SEM_VALIDADE ->
+            if (escuro) AzulCinza else PetroleoSec
     }

@@ -74,14 +74,15 @@ import br.com.despensa.domain.formatarReais
 import br.com.despensa.domain.gerarTexto
 import br.com.despensa.presentation.theme.Dur
 import br.com.despensa.presentation.theme.EsqueletoCard
-import br.com.despensa.presentation.theme.Mel
-import br.com.despensa.presentation.theme.MelClaro
-import br.com.despensa.presentation.theme.Tinta
-import br.com.despensa.presentation.theme.Tomate
-import br.com.despensa.presentation.theme.VerdeFolha
-import br.com.despensa.presentation.theme.VerdeFolhaClaro
-import br.com.despensa.presentation.theme.VerdeFundo
-import br.com.despensa.presentation.theme.VinhoNoite
+import br.com.despensa.presentation.theme.AmbarFeira
+import br.com.despensa.presentation.theme.AmbarClaro
+import br.com.despensa.presentation.theme.TintaMare
+import br.com.despensa.presentation.theme.LaranjaViva
+import br.com.despensa.presentation.theme.TurquesaProfunda
+import br.com.despensa.presentation.theme.TurquesaClara
+import br.com.despensa.presentation.theme.NevoaTurquesa
+import br.com.despensa.presentation.theme.CestoAzul
+import br.com.despensa.presentation.theme.AzulNoite
 import br.com.despensa.presentation.theme.atrasoStagger
 import br.com.despensa.presentation.theme.escalaPress
 import br.com.despensa.presentation.theme.lembrarMovimentoReduzido
@@ -300,8 +301,10 @@ fun ListaScreen(vm: ListaViewModel = hiltViewModel()) {
             }
             item {
                 Spacer(Modifier.height(4.dp))
-                // CTA único da tela, sempre Tomate (feira, regra 2).
-                // Disabled = Tomate 30% + texto-guia ("Selecione itens ↑"), não só cor.
+                // CTA único da tela, sempre LaranjaViva (maré, regra 3).
+                // Texto sobre ele SEMPRE onSecondary = TintaMaré/AzulNoite (4,72/9,96 ✅);
+                // branco sobre laranja (2,80 ❌) proibido. Laranja nunca como texto pequeno.
+                // Disabled = LaranjaViva 30% + texto-guia ("Selecione itens ↑"), não só cor.
                 Button(
                     onClick = { vm.gerarTextoReposicao() },
                     enabled = selecionadas > 0,
@@ -310,9 +313,9 @@ fun ListaScreen(vm: ListaViewModel = hiltViewModel()) {
                         .fillMaxWidth()
                         .escalaPress(interCta, calmo),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Tomate,
+                        containerColor = LaranjaViva,
                         contentColor = MaterialTheme.colorScheme.onSecondary,
-                        disabledContainerColor = Tomate.copy(alpha = 0.3f),
+                        disabledContainerColor = LaranjaViva.copy(alpha = 0.3f),
                         disabledContentColor = MaterialTheme.colorScheme.onSecondary.copy(alpha = 0.6f)
                     )
                 ) {
@@ -404,9 +407,9 @@ private fun SugestaoCard(
     calmo: Boolean = false
 ) {
     val escuro = isSystemInDarkTheme()
-    // E05 — marcado ACENDE: borda VerdeFolha 1.5dp + fundo VerdeFundo
+    // E05 — marcado ACENDE: borda TurquesaProfunda 1.5dp + fundo NevoaTurquesa/CestoAzul
     // (animateColor 200ms) + sombra suave quente. Não-marcado: outline 1dp.
-    val verdeMarcado = if (escuro) VerdeFolhaClaro else VerdeFolha
+    val verdeMarcado = if (escuro) TurquesaClara else TurquesaProfunda
     val corBorda by androidx.compose.animation.animateColorAsState(
         targetValue = if (sugestao.marcada) verdeMarcado
         else MaterialTheme.colorScheme.outline,
@@ -414,8 +417,9 @@ private fun SugestaoCard(
         label = "sug-borda"
     )
     val corFundo by androidx.compose.animation.animateColorAsState(
-        targetValue = if (sugestao.marcada) VerdeFundo
-        else MaterialTheme.colorScheme.surface,
+        targetValue = if (sugestao.marcada) {
+            if (escuro) CestoAzul else NevoaTurquesa
+        } else MaterialTheme.colorScheme.surface,
         animationSpec = specCalma(tween(Dur.P200, easing = FastOutSlowInEasing), calmo),
         label = "sug-fundo"
     )
@@ -453,7 +457,7 @@ private fun SugestaoCard(
                 onCheckedChange = { onAlternar() },
                 colors = CheckboxDefaults.colors(
                     checkedColor = verdeMarcado,
-                    checkmarkColor = if (escuro) VinhoNoite else androidx.compose.ui.graphics.Color.White
+                    checkmarkColor = if (escuro) AzulNoite else androidx.compose.ui.graphics.Color.White
                 )
             )
             Column(modifier = Modifier.weight(1f)) {
@@ -464,20 +468,20 @@ private fun SugestaoCard(
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     // Chip de origem em pílula calma (sem pop): CONSUMO =
-                    // VerdeFundo + VerdeFolha; VENCE EM 7D = Mel + Tinta.
+                    // NevoaTurquesa/CestoAzul + Turquesa; VENCE EM 7D = Ambar + TintaMaré/AzulNoite.
                     val chipFundo = if (sugestao.origem == OrigemSugestao.CONSUMO) {
-                        VerdeFundo
+                        if (escuro) CestoAzul else NevoaTurquesa
                     } else {
-                        if (escuro) MelClaro else Mel
+                        if (escuro) AmbarClaro else AmbarFeira
                     }
-                    val chipTinta = if (sugestao.origem == OrigemSugestao.CONSUMO) {
+                    val corTextoChip = if (sugestao.origem == OrigemSugestao.CONSUMO) {
                         verdeMarcado
                     } else {
-                        if (escuro) VinhoNoite else Tinta
+                        if (escuro) AzulNoite else TintaMare
                     }
                     Surface(
                         color = chipFundo,
-                        contentColor = chipTinta,
+                        contentColor = corTextoChip,
                         shape = CircleShape
                     ) {
                         Text(

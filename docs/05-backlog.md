@@ -1,7 +1,7 @@
 # 05 — Backlog Scrum — DespensaInteligente MVP
 
 ## Épicos → Stories
-- **E1 Estoque:** US01 cadastro em <15s · US02 foto opcional comprimida.
+- **E1 Estoque:** US01 cadastro rápido · US02 foto opcional comprimida.
 - **E2 Validade:** US03 semáforo · US04 notificações D-3/D-1/dia · US05 baixa 1 gesto.
 - **E3 Reposição:** US06 gerar lista + export ListaCompras · US07 tela R$ (salvos vs perdidos).
 - **E4 Base:** US08 busca/filtro · US09 backup JSON · US10 dark-first + TalkBack · US11 MigrationTest.

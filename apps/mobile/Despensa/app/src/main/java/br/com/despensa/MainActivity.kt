@@ -51,8 +51,8 @@ import br.com.despensa.presentation.lista.ListaViewModel
 import br.com.despensa.presentation.notif.PedidoPermissaoNotificacao
 import br.com.despensa.presentation.theme.DespensaTheme
 import br.com.despensa.presentation.theme.Dur
-import br.com.despensa.presentation.theme.VerdeFolha
-import br.com.despensa.presentation.theme.VerdeFolhaClaro
+import br.com.despensa.presentation.theme.TurquesaProfunda
+import br.com.despensa.presentation.theme.TurquesaClara
 import br.com.despensa.presentation.theme.fundoFeira
 import br.com.despensa.presentation.theme.lembrarMovimentoReduzido
 import dagger.hilt.android.AndroidEntryPoint
@@ -80,7 +80,7 @@ class MainActivity : ComponentActivity() {
                 val itens by vmEstoque.itens.collectAsState()
                 val calmo = lembrarMovimentoReduzido()
 
-                // §(e) — header SÓLIDO feira: light CremeFeira, dark VinhoNoite +
+                // §(e) — header SÓLIDO maré: light BrancoMaré, dark AzulNoite +
                 // Divider 1dp. Título Fraunces Bold (typography.titleLarge),
                 // sem glow. Subtítulo mantém AnimatedContent 200ms.
                 val tituloAba = when (aba) {
@@ -94,7 +94,7 @@ class MainActivity : ComponentActivity() {
                     Aba.LISTA -> "Exporte para o ListaCompras"
                     Aba.ECONOMIA -> "Salvos vs perdidos no mês"
                 }
-                val verdeNav = if (escuro) VerdeFolhaClaro else VerdeFolha
+                val verdeNav = if (escuro) TurquesaClara else TurquesaProfunda
 
                 Scaffold(
                     topBar = {
@@ -149,7 +149,7 @@ class MainActivity : ComponentActivity() {
                                         )
                                     },
                                     // E10: label acesa quando selecionada
-                                    // (Bold 12sp verde-feia × Medium onSurfaceVariant).
+                                    // (Bold 12sp turquesa-maré × Medium onSurfaceVariant).
                                     label = {
                                         Text(
                                             destino.rotulo,
@@ -161,7 +161,7 @@ class MainActivity : ComponentActivity() {
                                     },
                                     colors = NavigationBarItemDefaults.colors(
                                         selectedIconColor = verdeNav,
-                                        // E10: pílula verde-feia 18%.
+                                        // E10: pílula turquesa-maré 18%.
                                         indicatorColor = verdeNav.copy(alpha = 0.18f)
                                     )
                                 )

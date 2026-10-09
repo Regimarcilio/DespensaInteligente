@@ -61,15 +61,15 @@ import br.com.despensa.data.local.dao.EstoqueDao
 import br.com.despensa.domain.formatarReais
 import br.com.despensa.domain.inicioDoMes
 import br.com.despensa.domain.proporcaoConsumida
-import br.com.despensa.presentation.theme.Areia
-import br.com.despensa.presentation.theme.Cesto
+import br.com.despensa.presentation.theme.Nevoa
+import br.com.despensa.presentation.theme.CestoAzul
 import br.com.despensa.presentation.theme.Dur
-import br.com.despensa.presentation.theme.PimentaNoite
-import br.com.despensa.presentation.theme.PimentaQueimada
-import br.com.despensa.presentation.theme.Tomate
-import br.com.despensa.presentation.theme.TomateClaro
-import br.com.despensa.presentation.theme.VerdeFolha
-import br.com.despensa.presentation.theme.VerdeFolhaClaro
+import br.com.despensa.presentation.theme.VermelhoNoite
+import br.com.despensa.presentation.theme.VermelhoQueimado
+import br.com.despensa.presentation.theme.LaranjaViva
+import br.com.despensa.presentation.theme.LaranjaClara
+import br.com.despensa.presentation.theme.TurquesaProfunda
+import br.com.despensa.presentation.theme.TurquesaClara
 import br.com.despensa.presentation.theme.escalaPress
 import br.com.despensa.presentation.theme.lembrarMovimentoReduzido
 import br.com.despensa.presentation.theme.sombraFeira
@@ -136,13 +136,14 @@ fun EconomiaScreen(vm: EconomiaViewModel = hiltViewModel()) {
     val proporcao = proporcaoConsumida(salvos, perdidos)
     val pctConsumido = (proporcao * 100).toInt()
     val escuro = isSystemInDarkTheme()
-    // Feira: hero verde-folha, perda pimenta — sem neon, sem variantes de contraste
-    // antigas (os pares abaixo já passam AA nos fundos feira).
-    val corHero = if (escuro) VerdeFolhaClaro else VerdeFolha
-    val corPerda = if (escuro) PimentaNoite else PimentaQueimada
-    val corTrilho = if (escuro) Cesto else Areia
-    val corKnob = if (escuro) TomateClaro else Tomate
-    val corCta = if (escuro) TomateClaro else Tomate
+    // Maré (§07-paleta-v3): hero turquesa, perda vermelho-queimado — sem neon.
+    // CTA LaranjaViva/LaranjaClara SEMPRE fill grande com onSecondary = TintaMaré/AzulNoite
+    // (branco 2,80 ❌ proibido); laranja nunca como texto pequeno.
+    val corHero = if (escuro) TurquesaClara else TurquesaProfunda
+    val corPerda = if (escuro) VermelhoNoite else VermelhoQueimado
+    val corTrilho = if (escuro) CestoAzul else Nevoa
+    val corKnob = if (escuro) LaranjaClara else LaranjaViva
+    val corCta = if (escuro) LaranjaClara else LaranjaViva
     val contexto = LocalContext.current
     val escopo = rememberCoroutineScope()
     var statusBackup by remember { mutableStateOf<String?>(null) }
@@ -244,8 +245,8 @@ fun EconomiaScreen(vm: EconomiaViewModel = hiltViewModel()) {
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        // E03 — HERO feira: preço de banca escrito à mão — Fraunces Bold 52/56
-        // em VerdeFolha + count-up + bump. Sem glow, sem radial.
+        // E03 — HERO maré: preço de banca escrito à mão — Fraunces Bold 52/56
+        // em TurquesaProfunda/TurquesaClara + count-up + bump. Sem glow, sem radial.
         Text(
             "R$ ${formatarReais(exibido)}",
             style = MaterialTheme.typography.displayLarge,
@@ -358,9 +359,9 @@ fun EconomiaScreen(vm: EconomiaViewModel = hiltViewModel()) {
 }
 
 /**
- * E09 — barra Consumido × Descartado feira (§b): altura 16dp, trilho neutro
- * (Areia/Cesto), preenchimento VerdeFolha (animate 600ms), cantos 8dp,
- * knob Tomate 12dp sólido sem halo. A perda vira número ("R$ perdidos"),
+ * E09 — barra Consumido × Descartado maré (§07-paleta-v3): altura 16dp, trilho neutro
+ * (Nevoa/CestoAzul), preenchimento TurquesaProfunda/TurquesaClara (animate 600ms), cantos 8dp,
+ * knob LaranjaViva/LaranjaClara 12dp sólido sem halo. A perda vira número ("R$ perdidos"),
  * não cor de trilho — menos alarmista. Com total zerado, knob à esquerda.
  */
 @Composable
@@ -415,7 +416,7 @@ private fun EconomiaCard(
     calmo: Boolean = false
 ) {
     // E05 — card 24dp, borda 1dp outline, sombra suave quente + expansão com
-    // spring(300, 0.7). Título e valor na mesma cor (verde ou pimenta).
+    // spring(300, 0.7). Título e valor na mesma cor (turquesa ou vermelho-queimado).
     val escuro = isSystemInDarkTheme()
     OutlinedCard(
         modifier = modifier

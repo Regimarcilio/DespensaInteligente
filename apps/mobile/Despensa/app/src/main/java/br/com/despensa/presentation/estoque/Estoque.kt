@@ -120,18 +120,18 @@ import br.com.despensa.domain.diasParaVencer
 import br.com.despensa.domain.statusValidade
 import br.com.despensa.domain.validarCadastro
 import br.com.despensa.domain.valorTotalBaixa
-import br.com.despensa.presentation.theme.Areia
-import br.com.despensa.presentation.theme.BordaNoite
-import br.com.despensa.presentation.theme.CafeClaro
-import br.com.despensa.presentation.theme.CafeNoite
-import br.com.despensa.presentation.theme.Cesto
+import br.com.despensa.presentation.theme.Nevoa
+import br.com.despensa.presentation.theme.BordaNoiteAzul
+import br.com.despensa.presentation.theme.PetroleoSec
+import br.com.despensa.presentation.theme.AzulCinza
+import br.com.despensa.presentation.theme.CestoAzul
 import br.com.despensa.presentation.theme.Dur
 import br.com.despensa.presentation.theme.EsqueletoCard
-import br.com.despensa.presentation.theme.LinhaBorda
+import br.com.despensa.presentation.theme.LinhaAzul
 import br.com.despensa.presentation.theme.Papel
-import br.com.despensa.presentation.theme.PimentaQueimada
-import br.com.despensa.presentation.theme.Tomate
-import br.com.despensa.presentation.theme.VerdeFolha
+import br.com.despensa.presentation.theme.VermelhoQueimado
+import br.com.despensa.presentation.theme.LaranjaViva
+import br.com.despensa.presentation.theme.TurquesaProfunda
 import br.com.despensa.presentation.theme.atrasoStagger
 import br.com.despensa.presentation.theme.corAnelFrescor
 import br.com.despensa.presentation.theme.corFundoSelo
@@ -355,7 +355,7 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
                     interactionSource = interFab,
                     icon = { Icon(Icons.Filled.Add, contentDescription = null) },
                     text = { Text("Adicionar", fontWeight = FontWeight.Bold) },
-                    containerColor = Tomate,
+                    containerColor = LaranjaViva,
                     contentColor = MaterialTheme.colorScheme.onSecondary
                 )
             }
@@ -392,8 +392,8 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
                     // E06 — FilterChip pílula com press scale (interactionSource próprio).
                     val interChip = remember(rotulo) { MutableInteractionSource() }
                     val sel = filtro == local
-                    val chipFundo = if (escuro) Cesto else Papel
-                    val chipBorda = if (escuro) BordaNoite else LinhaBorda
+                    val chipFundo = if (escuro) CestoAzul else Papel
+                    val chipBorda = if (escuro) BordaNoiteAzul else LinhaAzul
                     FilterChip(
                         selected = sel,
                         onClick = { vm.filtrar(local) },
@@ -401,14 +401,14 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
                             Text(
                                 rotulo,
                                 maxLines = 1,
-                                color = if (sel) Color.White else if (escuro) CafeNoite else CafeClaro
+                                color = if (sel) Color.White else if (escuro) AzulCinza else PetroleoSec
                             )
                         },
                         interactionSource = interChip,
                         modifier = Modifier.escalaPress(interChip, calmo),
                         shape = CircleShape,
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = VerdeFolha,
+                            selectedContainerColor = TurquesaProfunda,
                             selectedLabelColor = Color.White,
                             containerColor = chipFundo
                         ),
@@ -416,7 +416,7 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
                             enabled = true,
                             selected = sel,
                             borderColor = chipBorda,
-                            selectedBorderColor = VerdeFolha,
+                            selectedBorderColor = TurquesaProfunda,
                             disabledBorderColor = chipBorda,
                             borderWidth = 1.dp,
                             selectedBorderWidth = 1.dp
@@ -440,7 +440,7 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        if (busca.isBlank()) "Toque em Adicionar para cadastrar em <15s."
+                        if (busca.isBlank()) "Toque em Adicionar para cadastrar."
                         else "Nada encontrado para \"$busca\".",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -507,8 +507,8 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
 }
 
 /**
- * Swipe de baixa (US05): direita (start→end, VerdeFolha + Check) = Consumir;
- * esquerda (end→start, PimentaQueimada + Delete) = Descartar. Cantos 24dp.
+ * Swipe de baixa (US05): direita (start→end, TurquesaProfunda + Check) = Consumir;
+ * esquerda (end→start, VermelhoQueimado + Delete) = Descartar. Cantos 24dp.
  * P3: HapticFeedback no confirmValueChange (gesto físico, não só visual).
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -542,7 +542,7 @@ private fun ItemDeslizavel(
         backgroundContent = {
             val direcao = estado.targetValue
             val paraDireita = direcao == SwipeToDismissBoxValue.StartToEnd
-            val cor = if (paraDireita) VerdeFolha else PimentaQueimada
+            val cor = if (paraDireita) TurquesaProfunda else VermelhoQueimado
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -632,7 +632,7 @@ private fun EstoqueCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Thumbnail 64dp círculo + anel de frescor 3dp; sem foto: fundo
-            // Areia + ícone Image em CafeClaro. Toque amplia (TalkBack).
+            // Nevoa + ícone Image em PetroleoSec. Toque amplia (TalkBack).
             ThumbFeira(
                 nome = item.nome,
                 fotoPath = item.fotoPath,
@@ -728,7 +728,7 @@ private fun EstoqueCard(
         AlertDialog(
             onDismissRequest = { ampliada = false },
             shape = RoundedCornerShape(28.dp),
-            containerColor = if (escuroDialogo) Cesto else Papel,
+            containerColor = if (escuroDialogo) CestoAzul else Papel,
             title = { Text(item.nome, style = MaterialTheme.typography.titleLarge) },
             text = {
                 if (grande != null) {
@@ -771,8 +771,8 @@ private fun ThumbFeira(
         .border(3.dp, anel, CircleShape)
         .clip(CircleShape)
     val escuroThumb = isSystemInDarkTheme()
-    val fundoVazio = if (escuroThumb) Cesto else Areia
-    val tintaVazia = if (escuroThumb) CafeNoite else CafeClaro
+    val fundoVazio = if (escuroThumb) CestoAzul else Nevoa
+    val tintaVazia = if (escuroThumb) AzulCinza else PetroleoSec
     if (temFoto) {
         val bitmap = remember(fotoPath) {
             FotoStore.decodificarAmostrado(fotoPath!!)
@@ -881,7 +881,7 @@ private fun DialogoCadastro(
     AlertDialog(
         onDismissRequest = onFechar,
         shape = RoundedCornerShape(28.dp),
-        containerColor = if (escuro) Cesto else Papel,
+        containerColor = if (escuro) CestoAzul else Papel,
         title = { Text("Novo item", style = MaterialTheme.typography.titleLarge) },
         text = {
             Column {
@@ -1000,7 +1000,7 @@ private fun DialogoCadastro(
                             contentDescription = "Foto capturada para o item",
                             modifier = Modifier
                                 .size(64.dp)
-                                .border(3.dp, CafeClaro, CircleShape)
+                                .border(3.dp, PetroleoSec, CircleShape)
                                 .clip(CircleShape)
                         )
                     } else {
@@ -1061,7 +1061,7 @@ private fun DialogoCadastro(
                 },
                 interactionSource = interSalvar,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Tomate,
+                    containerColor = LaranjaViva,
                     contentColor = MaterialTheme.colorScheme.onSecondary
                 ),
                 modifier = Modifier.escalaPress(interSalvar, calmo)

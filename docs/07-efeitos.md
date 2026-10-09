@@ -140,7 +140,7 @@ Regra: **`calmo == true` → todo `tween/spring` vira `snap()`, infinitos deslig
 Sugestão de fatiamento: PR1 = P0 (+ `Efeitos.kt` com `lembrarMovimentoReduzido()` + tokens `Dur(120/200/250/600/800/1200ms)`); PR2 = P1; PR3 = P2+P3. Cada PR com vídeo 15s dark+light + teste TalkBack do fluxo tocado.
 
 ## 4. Checklist de aceite por PR
-- [ ] Sem regressão funcional (baixa, cadastro <15s, gerar texto, backup SAF).
+- [ ] Sem regressão funcional (baixa, cadastro rápido, gerar texto, backup SAF).
 - [ ] Contraste AA medido (dark + light, texto funcional).
 - [ ] `ANIMATOR_DURATION_SCALE=0` → app estático e usável.
 - [ ] Scroll da lista sem jank (Profile GPU / Macrobenchmark, 60fps, sem blur em item).

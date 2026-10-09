@@ -15,31 +15,35 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import br.com.despensa.R
 
-// Tokens docs/07-estilo-v2.md — "Feira de Manhã" (light-first, substitui o neon).
-// Light: fundo CremeFeira · Dark: fundo VinhoNoite (nunca uva).
-val CremeFeira = Color(0xFFFAF5EC)
+// Tokens docs/07-paleta-v3.md — "Maré de Manhã" (troca SOMENTE de cor sobre a forma Feira).
+// FORMA v2 intacta: cantos 24/28/16dp, Fraunces Bold + Inter, sombras suaves, motion E03–E10.
+// Light: fundo BrancoMare · Dark: fundo AzulNoite (nunca uva, nunca vinho).
+// VETO: #0E9F8A NUNCA como texto/fill de leitura (3,21:1 ❌) — só acento gráfico grande
+// (anel 3dp, ilustração). Leitura usa TurquesaProfunda #0B6E5F (5,97/6,16 ✅).
+// CTA LaranjaViva SEMPRE com tinta escura (TintaMare 4,72 ✅); branco sobre laranja (2,80 ❌) proibido.
+val BrancoMare = Color(0xFFFFFBF4)
 val Papel = Color(0xFFFFFFFF)
-val Areia = Color(0xFFF0E6D2)
-val Tinta = Color(0xFF2B2118)
-val CafeClaro = Color(0xFF6B5D4F)
-val VerdeFolha = Color(0xFF2E7D32)
-val VerdeFundo = Color(0xFFE5F0E2)
-val Tomate = Color(0xFFD9481C)
-val Mel = Color(0xFFE8A020)
-val PimentaQueimada = Color(0xFFB72C00)
-val VerdeMenta = Color(0xFF3E8E4D)
-val CinzaSemente = Color(0xFF9C8F80)
-val LinhaBorda = Color(0xFFE3D7C0)
+val Nevoa = Color(0xFFEAF3F3)
+val TintaMare = Color(0xFF14343C)
+val PetroleoSec = Color(0xFF47626E)
+val TurquesaProfunda = Color(0xFF0B6E5F)
+val NevoaTurquesa = Color(0xFFE0F2EE)
+val LaranjaViva = Color(0xFFF97316)
+val AmbarFeira = Color(0xFFFBBF24)
+val LinhaAzul = Color(0xFFD8E6E8)
+val VermelhoQueimado = Color(0xFFB91C1C)
+val LaranjaQueimada = Color(0xFFC2410C)
+val RosaQueimadoFundo = Color(0xFFFDECEC)
 
-// Dark "vinho-noite quentinho".
-val VinhoNoite = Color(0xFF201210)
-val Cesto = Color(0xFF2E1D16)
-val CafeNoite = Color(0xFFC9BBA8)
-val VerdeFolhaClaro = Color(0xFF7BC98A)
-val TomateClaro = Color(0xFFF4733B)
-val MelClaro = Color(0xFFF2B73E)
-val PimentaNoite = Color(0xFFFF6B47)
-val BordaNoite = Color(0xFF4A342A)
+// Dark "azul-noite profundo".
+val AzulNoite = Color(0xFF0A2028)
+val CestoAzul = Color(0xFF14343C)
+val AzulCinza = Color(0xFFB8CDD4)
+val TurquesaClara = Color(0xFF5EEAD4)
+val LaranjaClara = Color(0xFFFDBA74)
+val AmbarClaro = Color(0xFFFCD34D)
+val BordaNoiteAzul = Color(0xFF26414B)
+val VermelhoNoite = Color(0xFFFCA5A5)
 
 // §(c) — display serifada (Fraunces Bold) + corpo grotesca (Inter).
 // TTFs estáticos subsetados em res/font/ (~179KB no APK).
@@ -107,43 +111,43 @@ val FormasFeira = Shapes(
 )
 
 private val CoresClaras = lightColorScheme(
-    primary = VerdeFolha,
+    primary = TurquesaProfunda,
     onPrimary = Color.White,
-    primaryContainer = VerdeFundo,
-    onPrimaryContainer = VerdeFolha,
-    secondary = Tomate,
-    onSecondary = CremeFeira,
-    tertiary = Mel,
-    onTertiary = Tinta,
-    background = CremeFeira,
-    onBackground = Tinta,
+    primaryContainer = NevoaTurquesa,
+    onPrimaryContainer = TurquesaProfunda,
+    secondary = LaranjaViva,
+    onSecondary = TintaMare,
+    tertiary = AmbarFeira,
+    onTertiary = TintaMare,
+    background = BrancoMare,
+    onBackground = TintaMare,
     surface = Papel,
-    onSurface = Tinta,
-    surfaceVariant = Areia,
-    onSurfaceVariant = CafeClaro,
-    outline = LinhaBorda,
-    error = PimentaQueimada,
+    onSurface = TintaMare,
+    surfaceVariant = Nevoa,
+    onSurfaceVariant = PetroleoSec,
+    outline = LinhaAzul,
+    error = VermelhoQueimado,
     onError = Color.White
 )
 
 private val CoresEscuras = darkColorScheme(
-    primary = VerdeFolhaClaro,
-    onPrimary = VinhoNoite,
-    primaryContainer = Cesto,
-    onPrimaryContainer = CremeFeira,
-    secondary = TomateClaro,
-    onSecondary = VinhoNoite,
-    tertiary = MelClaro,
-    onTertiary = VinhoNoite,
-    background = VinhoNoite,
-    onBackground = CremeFeira,
-    surface = VinhoNoite,
-    onSurface = CremeFeira,
-    surfaceVariant = Cesto,
-    onSurfaceVariant = CafeNoite,
-    outline = BordaNoite,
-    error = PimentaNoite,
-    onError = VinhoNoite
+    primary = TurquesaClara,
+    onPrimary = AzulNoite,
+    primaryContainer = CestoAzul,
+    onPrimaryContainer = BrancoMare,
+    secondary = LaranjaClara,
+    onSecondary = AzulNoite,
+    tertiary = AmbarClaro,
+    onTertiary = AzulNoite,
+    background = AzulNoite,
+    onBackground = BrancoMare,
+    surface = AzulNoite,
+    onSurface = BrancoMare,
+    surfaceVariant = CestoAzul,
+    onSurfaceVariant = AzulCinza,
+    outline = BordaNoiteAzul,
+    error = VermelhoNoite,
+    onError = AzulNoite
 )
 
 @Composable
