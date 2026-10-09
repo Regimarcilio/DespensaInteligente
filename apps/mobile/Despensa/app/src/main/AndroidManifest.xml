@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Sprint 1: sem foto, sem notificações, sem backup, sem sync. Nenhuma permissão. -->
+    <!-- Sprint 2 (RF-002/NFR-005): alerta local de validade. Sem FCM, sem foto, sem backup. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
         android:name=".DespensaApp"
         android:label="Despensa"

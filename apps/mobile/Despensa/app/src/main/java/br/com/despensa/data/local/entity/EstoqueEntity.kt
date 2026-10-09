@@ -21,5 +21,7 @@ data class EstoqueEntity(
     val validade: Long? = null,
     val local: LocalEstoque = LocalEstoque.DESPENSA,
     val fotoPath: String? = null,
+    /** Preço de referência unitário em R$ (opcional, Sprint 2 prepara tela R$ da Sprint 3). */
+    val precoRef: Double? = null,
     val createdAt: Long = System.currentTimeMillis()
 )

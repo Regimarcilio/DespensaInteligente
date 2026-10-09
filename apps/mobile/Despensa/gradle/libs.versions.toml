@@ -6,6 +6,7 @@ hilt = "2.51.1"
 composeBom = "2024.06.00"
 room = "2.6.1"
 coroutines = "1.8.1"
+work = "2.9.0"
 junit5 = "5.10.3"
 hilt-navigation-compose = "1.2.0"
 
@@ -26,6 +27,7 @@ hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt"
 hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hilt-navigation-compose" }
 hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hilt" }
 coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
 junit5-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit5" }
 
 [plugins]

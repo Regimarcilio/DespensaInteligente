@@ -26,4 +26,7 @@ interface EstoqueDao {
 
     @Query("SELECT * FROM estoque WHERE id = :id LIMIT 1")
     suspend fun buscarPorId(id: String): EstoqueEntity?
+
+    @Query("SELECT * FROM estoque ORDER BY CASE WHEN validade IS NULL THEN 1 ELSE 0 END, validade ASC")
+    suspend fun listarTudo(): List<EstoqueEntity>
 }

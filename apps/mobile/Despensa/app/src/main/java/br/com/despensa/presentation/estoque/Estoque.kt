@@ -2,7 +2,9 @@ package br.com.despensa.presentation.estoque
 
 import android.app.DatePickerDialog
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -19,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -37,14 +40,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,13 +68,17 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import br.com.despensa.data.local.dao.BaixaDao
 import br.com.despensa.data.local.dao.EstoqueDao
+import br.com.despensa.data.local.entity.BaixaEntity
 import br.com.despensa.data.local.entity.EstoqueEntity
 import br.com.despensa.data.local.entity.LocalEstoque
+import br.com.despensa.data.local.entity.MotivoBaixa
 import br.com.despensa.domain.StatusValidade
 import br.com.despensa.domain.diasParaVencer
 import br.com.despensa.domain.statusValidade
 import br.com.despensa.domain.validarCadastro
+import br.com.despensa.domain.valorTotalBaixa
 import br.com.despensa.presentation.theme.Ambar
 import br.com.despensa.presentation.theme.LimaNeon
 import br.com.despensa.presentation.theme.Pimenta
@@ -100,7 +113,8 @@ val LOCAIS_FILTRO: List<Pair<String, LocalEstoque?>> = listOf(
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class EstoqueViewModel @Inject constructor(
-    private val dao: EstoqueDao
+    private val dao: EstoqueDao,
+    private val baixaDao: BaixaDao
 ) : ViewModel() {
     private val busca = MutableStateFlow("")
     private val filtroLocal = MutableStateFlow<LocalEstoque?>(null)
@@ -121,7 +135,8 @@ class EstoqueViewModel @Inject constructor(
         quantidade: Double,
         unidade: String,
         validade: Long?,
-        local: LocalEstoque
+        local: LocalEstoque,
+        precoRef: Double?
     ) = viewModelScope.launch {
         dao.upsert(
             EstoqueEntity(
@@ -129,12 +144,35 @@ class EstoqueViewModel @Inject constructor(
                 quantidade = quantidade,
                 unidade = unidade,
                 validade = validade,
-                local = local
+                local = local,
+                precoRef = precoRef
             )
         )
     }
 
     fun remover(id: String) = viewModelScope.launch { dao.remover(id) }
+
+    /**
+     * Baixa em 1 gesto (RF-003): remove do estoque e registra a baixa com
+     * valorTotal = qtd × precoRef (0.0 sem preço). Chama [aoFeito] p/ Snackbar.
+     */
+    fun darBaixa(item: EstoqueEntity, motivo: MotivoBaixa, aoFeito: (String) -> Unit) =
+        viewModelScope.launch {
+            baixaDao.registrar(
+                BaixaEntity(
+                    nome = item.nome,
+                    quantidade = item.quantidade,
+                    unidade = item.unidade,
+                    valorTotal = valorTotalBaixa(item.quantidade, item.precoRef),
+                    motivo = motivo
+                )
+            )
+            dao.remover(item.id)
+            aoFeito(
+                if (motivo == MotivoBaixa.CONSUMIDO) "${item.nome} consumido ✅"
+                else "${item.nome} descartado 🗑️"
+            )
+        }
 }
 
 private fun formatarData(epoch: Long): String =
@@ -160,6 +198,16 @@ fun parseDataBr(texto: String): Long? {
         timeZone = TimeZone.getDefault()
     }
     return sdf.parse(t)?.time?.let { inicioDoDia(it) }
+}
+
+/** Converte "12,50"/"12.50" em Double. Null se vazio; exceção se inválido ou negativo. */
+fun parsePrecoBr(texto: String): Double? {
+    val t = texto.trim().replace("R$", "").trim()
+    if (t.isEmpty()) return null
+    val valor = t.replace(",", ".").toDoubleOrNull()
+        ?: throw IllegalArgumentException("Preço inválido")
+    if (valor < 0) throw IllegalArgumentException("Preço inválido")
+    return valor
 }
 
 /** Máscara simples dd/MM/yyyy enquanto digita (só dígitos, máx 8). */
@@ -199,8 +247,15 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
     val busca by vm.buscaAtual.collectAsState()
     val filtro by vm.filtroAtual.collectAsState()
     var dialogoAberto by remember { mutableStateOf(false) }
+    val snackbar = remember { SnackbarHostState() }
+    val escopo = rememberCoroutineScope()
+
+    fun avisar(msg: String) {
+        escopo.launch { snackbar.showSnackbar(msg) }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { dialogoAberto = true },
@@ -221,6 +276,11 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
             Text(
                 "${itens.size} ${if (itens.size == 1) "item" else "itens"} no estoque",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+            )
+            Text(
+                "Arraste → consumir · ← descartar",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(
@@ -259,7 +319,13 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(itens, key = { it.id }) { item ->
-                        EstoqueCard(item = item, onRemover = { vm.remover(item.id) })
+                        ItemDeslizavel(
+                            item = item,
+                            onConsumir = { vm.darBaixa(item, MotivoBaixa.CONSUMIDO, ::avisar) },
+                            onDescartar = { vm.darBaixa(item, MotivoBaixa.DESCARTADO, ::avisar) }
+                        ) {
+                            EstoqueCard(item = item, onRemover = { vm.remover(item.id) })
+                        }
                     }
                 }
             }
@@ -269,12 +335,82 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
     if (dialogoAberto) {
         DialogoCadastro(
             onFechar = { dialogoAberto = false },
-            onSalvar = { nome, qtd, un, val_, local ->
-                vm.salvar(nome, qtd, un, val_, local)
+            onSalvar = { nome, qtd, un, val_, local, preco ->
+                vm.salvar(nome, qtd, un, val_, local, preco)
                 dialogoAberto = false
             }
         )
     }
+}
+
+/**
+ * Swipe de baixa (US05): direita (start→end, LimaNeon + Check) = Consumir;
+ * esquerda (end→start, Pimenta + Delete) = Descartar.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ItemDeslizavel(
+    item: EstoqueEntity,
+    onConsumir: () -> Unit,
+    onDescartar: () -> Unit,
+    conteudo: @Composable () -> Unit
+) {
+    val estado = rememberSwipeToDismissBoxState(
+        confirmValueChange = { direcao ->
+            when (direcao) {
+                SwipeToDismissBoxValue.StartToEnd -> {
+                    onConsumir()
+                    true
+                }
+                SwipeToDismissBoxValue.EndToStart -> {
+                    onDescartar()
+                    true
+                }
+                SwipeToDismissBoxValue.Settled -> false
+            }
+        }
+    )
+    SwipeToDismissBox(
+        state = estado,
+        backgroundContent = {
+            val direcao = estado.targetValue
+            val paraDireita = direcao == SwipeToDismissBoxValue.StartToEnd
+            val cor = if (paraDireita) LimaNeon else Pimenta
+            val tinta = if (paraDireita) UvaNoite else Color.White
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(cor, RoundedCornerShape(18.dp))
+                    .padding(horizontal = 16.dp),
+                contentAlignment = if (paraDireita) Alignment.CenterStart else Alignment.CenterEnd
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (paraDireita) {
+                        Icon(Icons.Filled.Check, contentDescription = null, tint = tinta)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "Consumir ${item.nome}",
+                            fontWeight = FontWeight.Black,
+                            color = tinta,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    } else {
+                        Text(
+                            "Descartar ${item.nome}",
+                            fontWeight = FontWeight.Black,
+                            color = tinta,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Icon(Icons.Filled.Delete, contentDescription = null, tint = tinta)
+                    }
+                }
+            }
+        },
+        content = { conteudo() }
+    )
 }
 
 @Composable
@@ -338,6 +474,7 @@ private fun EstoqueCard(item: EstoqueEntity, onRemover: () -> Unit) {
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
                 )
             }
+            // Alternativa acessível ao swipe (TalkBack): remoção simples sem baixa.
             IconButton(onClick = onRemover) {
                 Icon(Icons.Filled.Delete, contentDescription = "Remover ${item.nome}")
             }
@@ -352,12 +489,13 @@ private fun formatarQtd(qtd: Double): String =
 @Composable
 private fun DialogoCadastro(
     onFechar: () -> Unit,
-    onSalvar: (nome: String, qtd: Double, unidade: String, validade: Long?, local: LocalEstoque) -> Unit
+    onSalvar: (nome: String, qtd: Double, unidade: String, validade: Long?, local: LocalEstoque, precoRef: Double?) -> Unit
 ) {
     var nome by remember { mutableStateOf("") }
     var qtdTxt by remember { mutableStateOf("1") }
     var unidade by remember { mutableStateOf("un") }
     var validadeTxt by remember { mutableStateOf("") }
+    var precoTxt by remember { mutableStateOf("") }
     var local by remember { mutableStateOf(LocalEstoque.DESPENSA) }
     var erro by remember { mutableStateOf<String?>(null) }
     var expandUn by remember { mutableStateOf(false) }
@@ -407,6 +545,16 @@ private fun DialogoCadastro(
                         }
                     }
                 }
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = precoTxt,
+                    onValueChange = { precoTxt = it },
+                    label = { Text("Preço R$ (opcional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    placeholder = { Text("ex 4,99") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                )
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = validadeTxt,
@@ -472,7 +620,13 @@ private fun DialogoCadastro(
                         erro = "Data inválida (use dd/MM/yyyy)"
                         return@Button
                     }
-                    onSalvar(nome, qtd!!, unidade, validade, local)
+                    val preco = try {
+                        parsePrecoBr(precoTxt)
+                    } catch (_: Exception) {
+                        erro = "Preço inválido (ex 4,99)"
+                        return@Button
+                    }
+                    onSalvar(nome, qtd!!, unidade, validade, local, preco)
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = LimaNeon, contentColor = UvaNoite)
             ) { Text("Salvar", fontWeight = FontWeight.Bold) }

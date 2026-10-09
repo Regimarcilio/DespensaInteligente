@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import br.com.despensa.presentation.estoque.EstoqueScreen
 import br.com.despensa.presentation.estoque.EstoqueViewModel
+import br.com.despensa.presentation.notif.PedidoPermissaoNotificacao
 import br.com.despensa.presentation.theme.DespensaTheme
 import br.com.despensa.presentation.theme.LimaNeon
 import br.com.despensa.presentation.theme.UvaNoite
@@ -38,6 +39,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             // Sprint 1: dark-first fixo (US10 full com TalkBack vem na S4).
             DespensaTheme(escuro = true) {
+                // Sprint 2 (RF-002): rationale próprio + pedido do sistema na 1ª abertura.
+                PedidoPermissaoNotificacao()
                 val vm: EstoqueViewModel = hiltViewModel()
                 val itens by vm.itens.collectAsState()
                 Scaffold(
