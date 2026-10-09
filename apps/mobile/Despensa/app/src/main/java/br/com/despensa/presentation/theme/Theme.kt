@@ -16,6 +16,12 @@ val Pimenta = Color(0xFFFF3D00)
 val Creme = Color(0xFFFFF6E9)
 val Tinta = Color(0xFF1A1025)
 
+// Issue #3: variantes escurecidas p/ texto sobre fundo claro (contraste AA no Creme).
+// LimaNeon/Pimenta/RoxoEletrico puros sobre Creme reprovam — usar estas no tema claro.
+val LimaEscura = Color(0xFF4E7A00)
+val PimentaEscura = Color(0xFFB72C00)
+val RoxoProfundo = Color(0xFF5B2FD6)
+
 private val CoresEscuras = darkColorScheme(
     primary = RoxoEletrico,
     onPrimary = Color.White,

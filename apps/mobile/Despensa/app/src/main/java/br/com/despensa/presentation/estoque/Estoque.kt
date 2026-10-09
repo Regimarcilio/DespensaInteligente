@@ -1,8 +1,16 @@
 package br.com.despensa.presentation.estoque
 
 import android.app.DatePickerDialog
+import android.content.Intent
+import android.provider.MediaStore
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -23,10 +32,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -57,9 +70,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -68,6 +86,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import br.com.despensa.data.foto.FotoStore
 import br.com.despensa.data.local.dao.BaixaDao
 import br.com.despensa.data.local.dao.EstoqueDao
 import br.com.despensa.data.local.entity.BaixaEntity
@@ -82,10 +101,12 @@ import br.com.despensa.domain.valorTotalBaixa
 import br.com.despensa.presentation.theme.Ambar
 import br.com.despensa.presentation.theme.LimaNeon
 import br.com.despensa.presentation.theme.Pimenta
+import br.com.despensa.presentation.theme.PimentaEscura
 import br.com.despensa.presentation.theme.RoxoEletrico
 import br.com.despensa.presentation.theme.Tinta
 import br.com.despensa.presentation.theme.UvaNoite
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -136,7 +157,8 @@ class EstoqueViewModel @Inject constructor(
         unidade: String,
         validade: Long?,
         local: LocalEstoque,
-        precoRef: Double?
+        precoRef: Double?,
+        fotoPath: String? = null
     ) = viewModelScope.launch {
         dao.upsert(
             EstoqueEntity(
@@ -145,6 +167,7 @@ class EstoqueViewModel @Inject constructor(
                 unidade = unidade,
                 validade = validade,
                 local = local,
+                fotoPath = fotoPath,
                 precoRef = precoRef
             )
         )
@@ -241,6 +264,15 @@ private fun corStatus(s: StatusValidade): Color = when (s) {
     StatusValidade.SEM_VALIDADE -> Color(0xFF9E9E9E)
 }
 
+/**
+ * Issue #3: no tema claro (fundo Creme) o Pimenta puro com texto branco não passa no
+ * contraste AA — usa [PimentaEscura]. Dark mantém o neon da identidade.
+ */
+private fun corFundoSticker(s: StatusValidade, escuro: Boolean): Color = when (s) {
+    StatusValidade.VENCIDO -> if (escuro) Pimenta else PimentaEscura
+    else -> corStatus(s)
+}
+
 @Composable
 fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
     val itens by vm.itens.collectAsState()
@@ -259,7 +291,11 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { dialogoAberto = true },
-                icon = { Icon(Icons.Filled.Add, contentDescription = "Adicionar") },
+                modifier = Modifier.semantics {
+                    contentDescription = "Adicionar item ao estoque"
+                    onClick(label = "Adicionar item ao estoque", action = null)
+                },
+                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
                 text = { Text("Adicionar", fontWeight = FontWeight.Bold) },
                 containerColor = LimaNeon,
                 contentColor = UvaNoite
@@ -324,7 +360,12 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
                             onConsumir = { vm.darBaixa(item, MotivoBaixa.CONSUMIDO, ::avisar) },
                             onDescartar = { vm.darBaixa(item, MotivoBaixa.DESCARTADO, ::avisar) }
                         ) {
-                            EstoqueCard(item = item, onRemover = { vm.remover(item.id) })
+                            EstoqueCard(
+                                item = item,
+                                onConsumir = { vm.darBaixa(item, MotivoBaixa.CONSUMIDO, ::avisar) },
+                                onDescartar = { vm.darBaixa(item, MotivoBaixa.DESCARTADO, ::avisar) },
+                                onRemover = { vm.remover(item.id) }
+                            )
                         }
                     }
                 }
@@ -335,8 +376,8 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
     if (dialogoAberto) {
         DialogoCadastro(
             onFechar = { dialogoAberto = false },
-            onSalvar = { nome, qtd, un, val_, local, preco ->
-                vm.salvar(nome, qtd, un, val_, local, preco)
+            onSalvar = { nome, qtd, un, val_, local, preco, foto ->
+                vm.salvar(nome, qtd, un, val_, local, preco, foto)
                 dialogoAberto = false
             }
         )
@@ -414,11 +455,20 @@ private fun ItemDeslizavel(
 }
 
 @Composable
-private fun EstoqueCard(item: EstoqueEntity, onRemover: () -> Unit) {
+private fun EstoqueCard(
+    item: EstoqueEntity,
+    onConsumir: () -> Unit,
+    onDescartar: () -> Unit,
+    onRemover: () -> Unit
+) {
     val agora = System.currentTimeMillis()
     val status = statusValidade(item.validade, agora)
     val dias = diasParaVencer(item.validade, agora)
-    val cor = corStatus(status)
+    val escuro = isSystemInDarkTheme()
+    val cor = corFundoSticker(status, escuro)
+    var menuAberto by remember { mutableStateOf(false) }
+    var ampliada by remember { mutableStateOf(false) }
+    val temFoto = FotoStore.fotoExiste(item.fotoPath)
 
     OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
@@ -432,6 +482,39 @@ private fun EstoqueCard(item: EstoqueEntity, onRemover: () -> Unit) {
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Issue #1: thumbnail 56dp da foto; toque amplia (contentDescription p/ TalkBack).
+            if (temFoto) {
+                val bitmap = remember(item.fotoPath) {
+                    FotoStore.decodificarAmostrado(item.fotoPath!!)
+                }
+                if (bitmap != null) {
+                    Image(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = "Foto de ${item.nome}. Toque para ampliar",
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable(
+                                onClickLabel = "Ampliar foto de ${item.nome}"
+                            ) { ampliada = true }
+                    )
+                } else {
+                    Icon(
+                        Icons.Filled.Image,
+                        contentDescription = null,
+                        modifier = Modifier.size(56.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                Icon(
+                    Icons.Filled.Image,
+                    contentDescription = null,
+                    modifier = Modifier.size(56.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                )
+            }
+            Spacer(Modifier.width(8.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     item.nome,
@@ -474,11 +557,65 @@ private fun EstoqueCard(item: EstoqueEntity, onRemover: () -> Unit) {
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
                 )
             }
-            // Alternativa acessível ao swipe (TalkBack): remoção simples sem baixa.
-            IconButton(onClick = onRemover) {
-                Icon(Icons.Filled.Delete, contentDescription = "Remover ${item.nome}")
+            // Issue #3: swipe não é acessível — Consumir/Descartar também no menu "···".
+            Box {
+                IconButton(
+                    onClick = { menuAberto = true },
+                    modifier = Modifier.semantics {
+                        onClick(label = "Mais ações para ${item.nome}", action = null)
+                    }
+                ) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = "Mais ações para ${item.nome}")
+                }
+                DropdownMenu(expanded = menuAberto, onDismissRequest = { menuAberto = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Consumir") },
+                        onClick = { menuAberto = false; onConsumir() },
+                        leadingIcon = { Icon(Icons.Filled.Check, contentDescription = null) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Descartar") },
+                        onClick = { menuAberto = false; onDescartar() },
+                        leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Remover sem baixa") },
+                        onClick = { menuAberto = false; onRemover() },
+                        leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) }
+                    )
+                }
             }
         }
+    }
+
+    // Diálogo com a foto ampliada (issue #1).
+    if (ampliada && temFoto) {
+        val grande = remember(item.fotoPath) {
+            FotoStore.decodificarAmostrado(item.fotoPath!!, 1024)
+        }
+        AlertDialog(
+            onDismissRequest = { ampliada = false },
+            title = { Text(item.nome, fontWeight = FontWeight.Bold) },
+            text = {
+                if (grande != null) {
+                    Image(
+                        bitmap = grande.asImageBitmap(),
+                        contentDescription = "Foto ampliada de ${item.nome}",
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else {
+                    Text("Não foi possível carregar a foto.")
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { ampliada = false },
+                    modifier = Modifier.semantics {
+                        onClick(label = "Fechar foto ampliada", action = null)
+                    }
+                ) { Text("Fechar") }
+            }
+        )
     }
 }
 
@@ -489,7 +626,7 @@ private fun formatarQtd(qtd: Double): String =
 @Composable
 private fun DialogoCadastro(
     onFechar: () -> Unit,
-    onSalvar: (nome: String, qtd: Double, unidade: String, validade: Long?, local: LocalEstoque, precoRef: Double?) -> Unit
+    onSalvar: (nome: String, qtd: Double, unidade: String, validade: Long?, local: LocalEstoque, precoRef: Double?, fotoPath: String?) -> Unit
 ) {
     var nome by remember { mutableStateOf("") }
     var qtdTxt by remember { mutableStateOf("1") }
@@ -497,10 +634,46 @@ private fun DialogoCadastro(
     var validadeTxt by remember { mutableStateOf("") }
     var precoTxt by remember { mutableStateOf("") }
     var local by remember { mutableStateOf(LocalEstoque.DESPENSA) }
+    var fotoPath by remember { mutableStateOf<String?>(null) }
+    var tirandoFoto by remember { mutableStateOf(false) }
     var erro by remember { mutableStateOf<String?>(null) }
     var expandUn by remember { mutableStateOf(false) }
     var expandLocal by remember { mutableStateOf(false) }
     val contexto = LocalContext.current
+    val escopo = rememberCoroutineScope()
+
+    // Issue #1: TakePicture SEM permissão CAMERA — Uri FileProvider p/ o app de câmera.
+    var fotoTemp: java.io.File? by remember { mutableStateOf(null) }
+    val tirarFoto = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        val temp = fotoTemp
+        fotoTemp = null
+        if (ok && temp != null) {
+            tirandoFoto = true
+            escopo.launch(Dispatchers.IO) {
+                runCatching { FotoStore.salvarComprimida(contexto, temp) }
+                    .onSuccess { fotoPath = it.absolutePath }
+                    .onFailure { temp.delete() }
+                tirandoFoto = false
+            }
+        } else {
+            temp?.delete()
+            if (!ok) {
+                Toast.makeText(contexto, "Foto cancelada", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    /** Verifica se há app de câmera; sem ele, Toast (fallback issue #1). */
+    fun pedirFoto() {
+        val temCamera = Intent(MediaStore.ACTION_IMAGE_CAPTURE).resolveActivity(contexto.packageManager) != null
+        if (!temCamera) {
+            Toast.makeText(contexto, "Sem câmera neste aparelho", Toast.LENGTH_LONG).show()
+            return
+        }
+        val (arquivo, uri) = FotoStore.novaFotoTemp(contexto)
+        fotoTemp = arquivo
+        tirarFoto.launch(uri)
+    }
 
     AlertDialog(
         onDismissRequest = onFechar,
@@ -599,6 +772,49 @@ private fun DialogoCadastro(
                         }
                     }
                 }
+                Spacer(Modifier.height(8.dp))
+                // Issue #1: foto opcional (WebP ≤200KB). Sem permissão CAMERA no manifest.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    val mini = remember(fotoPath) {
+                        fotoPath?.takeIf { FotoStore.fotoExiste(it) }?.let {
+                            FotoStore.decodificarAmostrado(it)
+                        }
+                    }
+                    if (mini != null) {
+                        Image(
+                            bitmap = mini.asImageBitmap(),
+                            contentDescription = "Foto capturada para o item",
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                        )
+                    } else {
+                        Icon(
+                            Icons.Filled.PhotoCamera,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                    }
+                    Button(
+                        onClick = ::pedirFoto,
+                        enabled = !tirandoFoto,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        modifier = Modifier.semantics {
+                            onClick(label = "Tirar foto do item", action = null)
+                        }
+                    ) {
+                        Text(
+                            if (tirandoFoto) "Processando…" else if (fotoPath != null) "Trocar foto" else "Tirar foto",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
                 erro?.let {
                     Spacer(Modifier.height(8.dp))
                     Text(it, color = MaterialTheme.colorScheme.error)
@@ -626,7 +842,7 @@ private fun DialogoCadastro(
                         erro = "Preço inválido (ex 4,99)"
                         return@Button
                     }
-                    onSalvar(nome, qtd!!, unidade, validade, local, preco)
+                    onSalvar(nome, qtd!!, unidade, validade, local, preco, fotoPath)
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = LimaNeon, contentColor = UvaNoite)
             ) { Text("Salvar", fontWeight = FontWeight.Bold) }

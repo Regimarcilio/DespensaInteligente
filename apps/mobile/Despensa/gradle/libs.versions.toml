@@ -6,6 +6,7 @@ hilt = "2.51.1"
 composeBom = "2024.06.00"
 room = "2.6.1"
 coroutines = "1.8.1"
+serialization = "1.7.3"
 work = "2.9.0"
 junit5 = "5.10.3"
 hilt-navigation-compose = "1.2.0"
@@ -23,10 +24,13 @@ lifecycle-runtime = "androidx.lifecycle:lifecycle-runtime-compose:2.7.0"
 room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
+room-testing = { module = "androidx.room:room-testing", version.ref = "room" }
+androidx-test-junit = "androidx.test.ext:junit:1.2.1"
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
 hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hilt-navigation-compose" }
 hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hilt" }
 coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
 junit5-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit5" }
 
@@ -34,5 +38,6 @@ junit5-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "ju
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

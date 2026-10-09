@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
 }
@@ -54,9 +55,13 @@ dependencies {
     implementation(libs.hilt.android)
     implementation(libs.hilt.navigation.compose)
     implementation(libs.coroutines.core)
+    implementation(libs.serialization.json)
     implementation(libs.work.runtime)
     ksp(libs.room.compiler)
     ksp(libs.hilt.compiler)
     testImplementation(libs.junit5.api)
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.3")
+    // #4: teste de migração instrumentado (compila aqui; roda em aparelho via connectedDebugAndroidTest).
+    androidTestImplementation(libs.room.testing)
+    androidTestImplementation(libs.androidx.test.junit)
 }

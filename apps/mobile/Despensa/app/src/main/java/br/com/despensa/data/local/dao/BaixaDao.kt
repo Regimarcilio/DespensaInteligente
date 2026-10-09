@@ -41,4 +41,8 @@ interface BaixaDao {
 
     @Query("DELETE FROM baixa")
     suspend fun limparTudo()
+
+    /** Tudo p/ backup JSON (issue #2): export espelha `EstoqueDao.listarTudo`. */
+    @Query("SELECT * FROM baixa ORDER BY ts DESC")
+    suspend fun listarTodas(): List<BaixaEntity>
 }
