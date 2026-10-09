@@ -23,17 +23,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
@@ -41,7 +43,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 
 /**
- * Tokens de motion do Sistema Neon Vivo (docs/07-efeitos.md §3).
+ * Tokens de motion do Sistema Neon Vivo (docs/07-efeitos.md §3),
+ * mantidos 100% na Feira (docs/07-estilo-v2.md §e) — a física continua.
  * Um único ponto de verdade: toda tela usa estes Dur — nada de ms mágicos.
  */
 object Dur {
@@ -110,35 +113,49 @@ fun Modifier.escalaPress(inter: MutableInteractionSource, calmo: Boolean): Modif
 }
 
 /**
- * E01 — fundo com ar: 2 blobs radiais ESTÁTICOS (drawBehind, 1x por tela,
- * nunca por card, sem animação contínua, sem BlurMaskFilter/RenderEffect).
- * Custo ~0 no scroll.
+ * §(d) D1 — pontilhado de banca: grade de pontos Tinta 4%
+ * (dark: CremeFeira 5%), raio 1dp, passo 24dp, só no fundo da tela
+ * (1x por tela, nunca por card, estático, custo ~0).
+ * Substitui os blobs radiais neon — mesma assinatura p/ diff mínimo.
  */
-fun Modifier.fundoComAr(escuro: Boolean): Modifier = this.drawBehind {
-    val roxo = if (escuro) RoxoEletrico else RoxoProfundo
-    val lima = if (escuro) LimaNeon else LimaEscura
-    drawCircle(
-        Brush.radialGradient(
-            listOf(roxo.copy(alpha = if (escuro) 0.18f else 0.10f), Color.Transparent)
-        ),
-        radius = 320.dp.toPx(),
-        center = Offset(size.width * 0.85f, -40f)
-    )
-    drawCircle(
-        Brush.radialGradient(
-            listOf(lima.copy(alpha = if (escuro) 0.07f else 0.06f), Color.Transparent)
-        ),
-        radius = 260.dp.toPx(),
-        center = Offset(size.width * 0.05f, size.height * 0.55f)
-    )
+fun Modifier.fundoFeira(escuro: Boolean): Modifier = this.drawBehind {
+    val ponto = if (escuro) CremeFeira.copy(alpha = 0.05f) else Tinta.copy(alpha = 0.04f)
+    val passo = 24.dp.toPx()
+    val r = 1.dp.toPx()
+    var y = 0f
+    while (y < size.height) {
+        var x = 0f
+        while (x < size.width) {
+            drawCircle(ponto, r, Offset(x, y))
+            x += passo
+        }
+        y += passo
+    }
 }
+
+/**
+ * §(b) — sombra suave e quente (nunca dura deslocada).
+ * Light: Tinta 8%/6% · Dark: Black 30%/20%. 1 shadow por card — permitido
+ * porque é 1 camada estática, sem animação por frame.
+ */
+fun Modifier.sombraFeira(
+    escuro: Boolean,
+    forma: Shape = RoundedCornerShape(24.dp)
+): Modifier = this.shadow(
+    elevation = 16.dp,
+    shape = forma,
+    clip = false,
+    ambientColor = if (escuro) Color.Black.copy(alpha = 0.30f) else Tinta.copy(alpha = 0.08f),
+    spotColor = if (escuro) Color.Black.copy(alpha = 0.20f) else Tinta.copy(alpha = 0.06f)
+)
 
 /** E04 — atraso do stagger: 40ms por posição visível, teto 400ms. */
 fun atrasoStagger(index: Int): Int = minOf(index * 40, 400)
 
 /**
- * E08 — skeleton fantasma do card (18dp, borda 2dp onSurface 12%,
- * 3 linhas 8dp 12% + thumb 56dp). Shimmer só quando !calmo.
+ * E08 — skeleton fantasma do card (24dp, thumb fantasma círculo 64dp).
+ * Recolorido p/ feira: base Tinta 6%/brilho 12% light
+ * (dark: CremeFeira 8/18%). Shimmer só quando !calmo.
  * Contenção: o infinito vive NESTE escopo (skeleton), nunca no item da lista.
  */
 @Composable
@@ -148,8 +165,8 @@ fun EsqueletoCard(
     descricao: String = "Carregando estoque"
 ) {
     val escuro = isSystemInDarkTheme()
-    val base = if (escuro) Creme.copy(alpha = 0.08f) else Tinta.copy(alpha = 0.06f)
-    val brilho = if (escuro) Creme.copy(alpha = 0.18f) else Tinta.copy(alpha = 0.12f)
+    val base = if (escuro) CremeFeira.copy(alpha = 0.08f) else Tinta.copy(alpha = 0.06f)
+    val brilho = if (escuro) CremeFeira.copy(alpha = 0.18f) else Tinta.copy(alpha = 0.12f)
 
     val brush = if (calmo) {
         null
@@ -179,7 +196,7 @@ fun EsqueletoCard(
             .fillMaxWidth()
             .background(
                 brush ?: Brush.linearGradient(listOf(base, base)),
-                RoundedCornerShape(18.dp)
+                RoundedCornerShape(24.dp)
             )
             .semantics { contentDescription = descricao }
             .padding(12.dp),
@@ -188,8 +205,8 @@ fun EsqueletoCard(
     ) {
         Box(
             Modifier
-                .size(56.dp)
-                .background(base, RoundedCornerShape(12.dp))
+                .size(64.dp)
+                .background(base, CircleShape)
         )
         Column(
             modifier = Modifier.weight(1f),
@@ -202,16 +219,43 @@ fun EsqueletoCard(
     }
 }
 
-/** E05 — sombra dura deslocada 4dp (camada sólida, custo ~0, sem blur). */
+/**
+ * Anel de frescor do thumb 64dp (§b): cor por status.
+ * FRESCO VerdeMenta · ATENÇÃO Mel · VENCEU PimentaQueimada · SEM CinzaSemente.
+ * Dark: FRESCO VerdeFolhaClaro · ATENÇÃO MelClaro · VENCEU PimentaNoite.
+ */
 @Composable
-fun SombraDura(
-    modifier: Modifier = Modifier,
-    forma: RoundedCornerShape = RoundedCornerShape(18.dp)
-) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(start = 4.dp, top = 4.dp)
-            .background(Tinta, forma)
-    )
-}
+fun corAnelFrescor(status: br.com.despensa.domain.StatusValidade, escuro: Boolean): Color =
+    when (status) {
+        br.com.despensa.domain.StatusValidade.VENCIDO ->
+            if (escuro) PimentaNoite else PimentaQueimada
+        br.com.despensa.domain.StatusValidade.ATENCAO ->
+            if (escuro) MelClaro else Mel
+        br.com.despensa.domain.StatusValidade.FRESCO ->
+            if (escuro) VerdeFolhaClaro else VerdeMenta
+        br.com.despensa.domain.StatusValidade.SEM_VALIDADE -> CinzaSemente
+    }
+
+/** Cor de fundo do selo pílula por status (§b). */
+@Composable
+fun corFundoSelo(status: br.com.despensa.domain.StatusValidade, escuro: Boolean): Color =
+    when (status) {
+        br.com.despensa.domain.StatusValidade.VENCIDO ->
+            if (escuro) PimentaNoite else PimentaQueimada
+        br.com.despensa.domain.StatusValidade.ATENCAO ->
+            if (escuro) MelClaro else Mel
+        br.com.despensa.domain.StatusValidade.FRESCO -> VerdeFundo
+        br.com.despensa.domain.StatusValidade.SEM_VALIDADE -> Areia
+    }
+
+/** Cor do texto do selo pílula por status (§b). */
+@Composable
+fun corTextoSelo(status: br.com.despensa.domain.StatusValidade, escuro: Boolean): Color =
+    when (status) {
+        br.com.despensa.domain.StatusValidade.VENCIDO ->
+            if (escuro) VinhoNoite else Color.White
+        br.com.despensa.domain.StatusValidade.ATENCAO ->
+            if (escuro) VinhoNoite else Tinta
+        br.com.despensa.domain.StatusValidade.FRESCO -> VerdeFolha
+        br.com.despensa.domain.StatusValidade.SEM_VALIDADE -> CafeClaro
+    }

@@ -20,8 +20,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.core.content.ContextCompat
-import br.com.despensa.presentation.theme.LimaNeon
-import br.com.despensa.presentation.theme.UvaNoite
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.unit.dp
 
 private const val PREFS = "despensa_prefs"
 private const val KEY_PERGUNTA_FEITA = "notif_pergunta_feita"
@@ -63,7 +64,8 @@ fun PedidoPermissaoNotificacao() {
                 prefs.edit().putBoolean(KEY_PERGUNTA_FEITA, true).apply()
                 mostrarRationale = false
             },
-            title = { Text("Ativar avisos de validade?", fontWeight = FontWeight.Bold) },
+            shape = RoundedCornerShape(28.dp),
+            title = { Text("Ativar avisos de validade?", style = MaterialTheme.typography.titleLarge) },
             text = {
                 Text(
                     "Avisamos antes de vencer — 3 dias, 1 dia e no dia — " +
@@ -74,7 +76,8 @@ fun PedidoPermissaoNotificacao() {
                 Button(
                     onClick = { launcher.launch(Manifest.permission.POST_NOTIFICATIONS) },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = LimaNeon, contentColor = UvaNoite
+                        containerColor = MaterialTheme.colorScheme.secondary,
+                        contentColor = MaterialTheme.colorScheme.onSecondary
                     )
                 ) { Text("Ativar avisos", fontWeight = FontWeight.Bold) }
             },

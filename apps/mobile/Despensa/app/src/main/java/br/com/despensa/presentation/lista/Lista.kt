@@ -8,7 +8,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -18,10 +17,9 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -34,6 +32,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -60,10 +59,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -73,16 +72,20 @@ import br.com.despensa.domain.ItemReposicao
 import br.com.despensa.domain.diasParaVencer
 import br.com.despensa.domain.formatarReais
 import br.com.despensa.domain.gerarTexto
-import br.com.despensa.presentation.theme.Ambar
 import br.com.despensa.presentation.theme.Dur
 import br.com.despensa.presentation.theme.EsqueletoCard
-import br.com.despensa.presentation.theme.LimaNeon
-import br.com.despensa.presentation.theme.RoxoEletrico
+import br.com.despensa.presentation.theme.Mel
+import br.com.despensa.presentation.theme.MelClaro
 import br.com.despensa.presentation.theme.Tinta
-import br.com.despensa.presentation.theme.UvaNoite
+import br.com.despensa.presentation.theme.Tomate
+import br.com.despensa.presentation.theme.VerdeFolha
+import br.com.despensa.presentation.theme.VerdeFolhaClaro
+import br.com.despensa.presentation.theme.VerdeFundo
+import br.com.despensa.presentation.theme.VinhoNoite
 import br.com.despensa.presentation.theme.atrasoStagger
 import br.com.despensa.presentation.theme.escalaPress
 import br.com.despensa.presentation.theme.lembrarMovimentoReduzido
+import br.com.despensa.presentation.theme.sombraFeira
 import br.com.despensa.presentation.theme.specCalma
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
@@ -219,7 +222,10 @@ fun ListaScreen(vm: ListaViewModel = hiltViewModel()) {
     // E06 — CTA com press scale.
     val interCta = remember { MutableInteractionSource() }
 
-    Scaffold(snackbarHost = { SnackbarHost(snackbar) }) { pad ->
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { pad ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -232,7 +238,7 @@ fun ListaScreen(vm: ListaViewModel = hiltViewModel()) {
                 Spacer(Modifier.height(12.dp))
                 Text(
                     "Sugestões",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                    style = MaterialTheme.typography.titleMedium
                 )
                 Text(
                     "Consumidos nos últimos 30 dias + vencendo em 7 dias",
@@ -247,12 +253,18 @@ fun ListaScreen(vm: ListaViewModel = hiltViewModel()) {
                 }
             } else if (sugestoes.isEmpty()) {
                 item {
-                    Text(
-                        "Sem sugestões — consuma itens ou cadastre validades.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 24.dp)
-                    )
+                    Column(modifier = Modifier.padding(vertical = 24.dp)) {
+                        Text(
+                            "Sua feira está vazia 🧺",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Sem sugestões — consuma itens ou cadastre validades.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             } else {
                 itemsIndexed(sugestoes, key = { _, it -> it.nome }) { index, s ->
@@ -288,9 +300,8 @@ fun ListaScreen(vm: ListaViewModel = hiltViewModel()) {
             }
             item {
                 Spacer(Modifier.height(4.dp))
-                // CTA único da tela, sempre LimaNeon (identidade, regra 5).
-                // §2.2 AA: disabled = LimaNeon 30% + texto UvaNoite 60% E estado
-                // informado por texto ("Selecione itens ↑"), não só por cor.
+                // CTA único da tela, sempre Tomate (feira, regra 2).
+                // Disabled = Tomate 30% + texto-guia ("Selecione itens ↑"), não só cor.
                 Button(
                     onClick = { vm.gerarTextoReposicao() },
                     enabled = selecionadas > 0,
@@ -299,15 +310,15 @@ fun ListaScreen(vm: ListaViewModel = hiltViewModel()) {
                         .fillMaxWidth()
                         .escalaPress(interCta, calmo),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = LimaNeon,
-                        contentColor = UvaNoite,
-                        disabledContainerColor = LimaNeon.copy(alpha = 0.3f),
-                        disabledContentColor = UvaNoite.copy(alpha = 0.6f)
+                        containerColor = Tomate,
+                        contentColor = MaterialTheme.colorScheme.onSecondary,
+                        disabledContainerColor = Tomate.copy(alpha = 0.3f),
+                        disabledContentColor = MaterialTheme.colorScheme.onSecondary.copy(alpha = 0.6f)
                     )
                 ) {
                     Text(
                         if (selecionadas > 0) "Gerar texto ($selecionadas)" else "Gerar texto",
-                        fontWeight = FontWeight.Black
+                        fontWeight = FontWeight.Bold
                     )
                 }
                 if (selecionadas == 0) {
@@ -334,9 +345,11 @@ fun ListaScreen(vm: ListaViewModel = hiltViewModel()) {
                         label = "texto-gerado"
                     ) {
                         OutlinedCard(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(18.dp),
-                            border = BorderStroke(2.dp, Tinta.copy(alpha = 0.9f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .sombraFeira(isSystemInDarkTheme(), RoundedCornerShape(24.dp)),
+                            shape = RoundedCornerShape(24.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                             colors = CardDefaults.outlinedCardColors(
                                 containerColor = MaterialTheme.colorScheme.surface
                             )
@@ -390,119 +403,115 @@ private fun SugestaoCard(
     onMenos: () -> Unit,
     calmo: Boolean = false
 ) {
-    // E05 — marcado ACENDE: borda RoxoEletrico 2dp + fundo RoxoEletrico 8%
-    // (animateColor 200ms) + sombra dura 4dp → 6dp. Não-marcado: Tinta 90%.
+    val escuro = isSystemInDarkTheme()
+    // E05 — marcado ACENDE: borda VerdeFolha 1.5dp + fundo VerdeFundo
+    // (animateColor 200ms) + sombra suave quente. Não-marcado: outline 1dp.
+    val verdeMarcado = if (escuro) VerdeFolhaClaro else VerdeFolha
     val corBorda by androidx.compose.animation.animateColorAsState(
-        targetValue = if (sugestao.marcada) RoxoEletrico else Tinta.copy(alpha = 0.9f),
+        targetValue = if (sugestao.marcada) verdeMarcado
+        else MaterialTheme.colorScheme.outline,
         animationSpec = specCalma(tween(Dur.P200, easing = FastOutSlowInEasing), calmo),
         label = "sug-borda"
     )
     val corFundo by androidx.compose.animation.animateColorAsState(
-        targetValue = if (sugestao.marcada) RoxoEletrico.copy(alpha = 0.08f)
+        targetValue = if (sugestao.marcada) VerdeFundo
         else MaterialTheme.colorScheme.surface,
         animationSpec = specCalma(tween(Dur.P200, easing = FastOutSlowInEasing), calmo),
         label = "sug-fundo"
     )
-    val desl = if (sugestao.marcada) 6.dp else 4.dp
 
-    // E07 — chip de origem com o mesmo pop do sticker (keyed na origem).
-    var chipOn by remember { mutableStateOf(false) }
-    LaunchedEffect(sugestao.origem) {
-        if (!calmo) {
-            chipOn = true
-            delay(125)
-            chipOn = false
-        }
-    }
-    val chipS by animateFloatAsState(
-        targetValue = if (chipOn && !calmo) 1.18f else 1f,
-        animationSpec = specCalma(spring(stiffness = 500f, dampingRatio = 0.5f), calmo),
-        label = "chip-pop"
-    )
-
-    // E06 — stepper − / + e checkbox com press scale.
+    // E06 — stepper − / + com press scale.
     val interMenos = remember(sugestao.nome) { MutableInteractionSource() }
     val interMais = remember(sugestao.nome) { MutableInteractionSource() }
 
-    Box(modifier = Modifier.fillMaxWidth()) {
-        Box(
-            Modifier
-                .matchParentSize()
-                .padding(start = desl, top = desl)
-                .background(Tinta, RoundedCornerShape(18.dp))
-        )
-        OutlinedCard(
+    OutlinedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .sombraFeira(escuro, RoundedCornerShape(24.dp))
+            .animateContentSize(
+                animationSpec = specCalma(
+                    spring(stiffness = 300f, dampingRatio = 0.7f),
+                    calmo
+                )
+            ),
+        shape = RoundedCornerShape(24.dp),
+        border = BorderStroke(
+            if (sugestao.marcada) 1.5.dp else 1.dp,
+            corBorda
+        ),
+        colors = CardDefaults.outlinedCardColors(containerColor = corFundo)
+    ) {
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .animateContentSize(
-                    animationSpec = specCalma(
-                        spring(stiffness = 300f, dampingRatio = 0.7f),
-                        calmo
-                    )
-                ),
-            shape = RoundedCornerShape(18.dp),
-            border = BorderStroke(2.dp, corBorda),
-            colors = CardDefaults.outlinedCardColors(containerColor = corFundo)
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Checkbox aceso quando marcado (RoxoEletrico já era — mantém).
-                Box(Modifier.graphicsLayer(scaleX = 1f, scaleY = 1f)) {
-                    Checkbox(
-                        checked = sugestao.marcada,
-                        onCheckedChange = { onAlternar() },
-                        colors = CheckboxDefaults.colors(checkedColor = RoxoEletrico)
-                    )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        sugestao.nome,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        maxLines = 2
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(
-                            color = if (sugestao.origem == OrigemSugestao.CONSUMO) LimaNeon else Ambar,
-                            contentColor = UvaNoite,
-                            shape = RoundedCornerShape(6.dp),
-                            modifier = Modifier.graphicsLayer(scaleX = chipS, scaleY = chipS)
-                        ) {
-                            Text(
-                                if (sugestao.origem == OrigemSugestao.CONSUMO) "CONSUMO" else "VENCE EM 7D",
-                                fontWeight = FontWeight.Black,
-                                style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                        sugestao.precoUnit?.takeIf { it > 0 }?.let {
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                "R$ ${formatarReais(it)}/${sugestao.unidade}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+            // Checkbox verde-feia quando marcado.
+            Checkbox(
+                checked = sugestao.marcada,
+                onCheckedChange = { onAlternar() },
+                colors = CheckboxDefaults.colors(
+                    checkedColor = verdeMarcado,
+                    checkmarkColor = if (escuro) VinhoNoite else androidx.compose.ui.graphics.Color.White
+                )
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    sugestao.nome,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    maxLines = 2
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Chip de origem em pílula calma (sem pop): CONSUMO =
+                    // VerdeFundo + VerdeFolha; VENCE EM 7D = Mel + Tinta.
+                    val chipFundo = if (sugestao.origem == OrigemSugestao.CONSUMO) {
+                        VerdeFundo
+                    } else {
+                        if (escuro) MelClaro else Mel
+                    }
+                    val chipTinta = if (sugestao.origem == OrigemSugestao.CONSUMO) {
+                        verdeMarcado
+                    } else {
+                        if (escuro) VinhoNoite else Tinta
+                    }
+                    Surface(
+                        color = chipFundo,
+                        contentColor = chipTinta,
+                        shape = CircleShape
+                    ) {
+                        Text(
+                            if (sugestao.origem == OrigemSugestao.CONSUMO) "CONSUMO" else "VENCE EM 7D",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            letterSpacing = 0.5.sp,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                        )
+                    }
+                    sugestao.precoUnit?.takeIf { it > 0 }?.let {
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            "R$ ${formatarReais(it)}/${sugestao.unidade}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
-                IconButton(
-                    onClick = onMenos,
-                    interactionSource = interMenos,
-                    modifier = Modifier.escalaPress(interMenos, calmo)
-                ) { Text("−", fontWeight = FontWeight.Black) }
-                Text(
-                    "${formatarQtd(sugestao.quantidade)}${sugestao.unidade}",
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
-                )
-                IconButton(
-                    onClick = onMais,
-                    interactionSource = interMais,
-                    modifier = Modifier.escalaPress(interMais, calmo)
-                ) { Text("+", fontWeight = FontWeight.Black) }
             }
+            IconButton(
+                onClick = onMenos,
+                interactionSource = interMenos,
+                modifier = Modifier.escalaPress(interMenos, calmo)
+            ) { Text("−", fontWeight = FontWeight.Bold) }
+            Text(
+                "${formatarQtd(sugestao.quantidade)}${sugestao.unidade}",
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+            )
+            IconButton(
+                onClick = onMais,
+                interactionSource = interMais,
+                modifier = Modifier.escalaPress(interMais, calmo)
+            ) { Text("+", fontWeight = FontWeight.Bold) }
         }
     }
 }

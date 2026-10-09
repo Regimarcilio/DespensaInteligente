@@ -10,11 +10,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -47,6 +43,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -94,7 +91,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -124,18 +120,25 @@ import br.com.despensa.domain.diasParaVencer
 import br.com.despensa.domain.statusValidade
 import br.com.despensa.domain.validarCadastro
 import br.com.despensa.domain.valorTotalBaixa
-import br.com.despensa.presentation.theme.Ambar
+import br.com.despensa.presentation.theme.Areia
+import br.com.despensa.presentation.theme.BordaNoite
+import br.com.despensa.presentation.theme.CafeClaro
+import br.com.despensa.presentation.theme.CafeNoite
+import br.com.despensa.presentation.theme.Cesto
 import br.com.despensa.presentation.theme.Dur
 import br.com.despensa.presentation.theme.EsqueletoCard
-import br.com.despensa.presentation.theme.LimaNeon
-import br.com.despensa.presentation.theme.Pimenta
-import br.com.despensa.presentation.theme.PimentaEscura
-import br.com.despensa.presentation.theme.RoxoEletrico
-import br.com.despensa.presentation.theme.Tinta
-import br.com.despensa.presentation.theme.UvaNoite
+import br.com.despensa.presentation.theme.LinhaBorda
+import br.com.despensa.presentation.theme.Papel
+import br.com.despensa.presentation.theme.PimentaQueimada
+import br.com.despensa.presentation.theme.Tomate
+import br.com.despensa.presentation.theme.VerdeFolha
 import br.com.despensa.presentation.theme.atrasoStagger
+import br.com.despensa.presentation.theme.corAnelFrescor
+import br.com.despensa.presentation.theme.corFundoSelo
+import br.com.despensa.presentation.theme.corTextoSelo
 import br.com.despensa.presentation.theme.escalaPress
 import br.com.despensa.presentation.theme.lembrarMovimentoReduzido
+import br.com.despensa.presentation.theme.sombraFeira
 import br.com.despensa.presentation.theme.specCalma
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -290,24 +293,6 @@ private fun rotuloStatus(s: StatusValidade): String = when (s) {
     StatusValidade.SEM_VALIDADE -> "SEM VALIDADE"
 }
 
-private fun corStatus(s: StatusValidade): Color = when (s) {
-    StatusValidade.VENCIDO -> Pimenta
-    StatusValidade.ATENCAO -> Ambar
-    StatusValidade.FRESCO -> LimaNeon
-    // §2.2 AA: 0xFF9E9E9E sobre dark reprova como texto — selo pequeno elevado
-    // p/ 0xFFBDBDBD em 11sp Black.
-    StatusValidade.SEM_VALIDADE -> Color(0xFFBDBDBD)
-}
-
-/**
- * Issue #3: no tema claro (fundo Creme) o Pimenta puro com texto branco não passa no
- * contraste AA — usa [PimentaEscura]. Dark mantém o neon da identidade.
- */
-private fun corFundoSticker(s: StatusValidade, escuro: Boolean): Color = when (s) {
-    StatusValidade.VENCIDO -> if (escuro) Pimenta else PimentaEscura
-    else -> corStatus(s)
-}
-
 @Composable
 fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
     val itens by vm.itens.collectAsState()
@@ -317,6 +302,7 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
     val snackbar = remember { SnackbarHostState() }
     val escopo = rememberCoroutineScope()
     val calmo = lembrarMovimentoReduzido()
+    val escuro = isSystemInDarkTheme()
 
     // E08 — janela de primeira coleta (WhileSubscribed): skeleton com shimmer
     // em vez do "Estoque vazio…" enquanto o banco popula. Sem mudar fluxos:
@@ -331,7 +317,7 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
     // E04 — marca ids já animados: scroll de volta não re-anima.
     val vistos = remember { mutableStateMapOf<String, Boolean>() }
 
-    // E06+E10 — FAB: press 0.97 × pulse 1.0→1.04 (1800ms Reverse infinito).
+    // E06 — FAB: press 0.97 (sem pulse na feira — mantém fabPress).
     val interFab = remember { MutableInteractionSource() }
     val fabPressionado by interFab.collectIsPressedAsState()
     val fabPress by animateFloatAsState(
@@ -339,19 +325,6 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
         animationSpec = specCalma(tween(Dur.P120, easing = FastOutSlowInEasing), calmo),
         label = "fab-press"
     )
-    val fabPulse by if (calmo) {
-        remember { mutableStateOf(1f) }
-    } else {
-        rememberInfiniteTransition(label = "fab-pulse").animateFloat(
-            initialValue = 1f,
-            targetValue = 1.04f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(1800),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "fab-pulse-fase"
-        )
-    }
 
     fun avisar(msg: String) {
         escopo.launch { snackbar.showSnackbar(msg) }
@@ -359,6 +332,7 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
+        containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
             // E10 — some (shrink 200ms) quando o diálogo abre.
             AnimatedVisibility(
@@ -376,19 +350,13 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
                             contentDescription = "Adicionar item ao estoque"
                             onClick(label = "Adicionar item ao estoque", action = null)
                         }
-                        .graphicsLayer(scaleX = fabPress * fabPulse, scaleY = fabPress * fabPulse)
-                        // E10 — glow LimaNeon 35% blur 8dp SÓ no FAB
-                        // (1 shadow, fora da lista rolável).
-                        .shadow(
-                            8.dp,
-                            RoundedCornerShape(16.dp),
-                            spotColor = LimaNeon.copy(alpha = 0.35f)
-                        ),
+                        .graphicsLayer(scaleX = fabPress, scaleY = fabPress),
+                    shape = RoundedCornerShape(20.dp),
                     interactionSource = interFab,
                     icon = { Icon(Icons.Filled.Add, contentDescription = null) },
                     text = { Text("Adicionar", fontWeight = FontWeight.Bold) },
-                    containerColor = LimaNeon,
-                    contentColor = UvaNoite
+                    containerColor = Tomate,
+                    contentColor = MaterialTheme.colorScheme.onSecondary
                 )
             }
         }
@@ -402,7 +370,7 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
             Spacer(Modifier.height(12.dp))
             Text(
                 "${itens.size} ${if (itens.size == 1) "item" else "itens"} no estoque",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                style = MaterialTheme.typography.titleMedium
             )
             Text(
                 "Arraste → consumir · ← descartar",
@@ -415,22 +383,43 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
                 onValueChange = vm::buscar,
                 label = { Text("Buscar item") },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp)
             )
             Spacer(Modifier.height(8.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(LOCAIS_FILTRO) { (rotulo, local) ->
-                    // E06 — FilterChip com press scale (interactionSource próprio).
+                    // E06 — FilterChip pílula com press scale (interactionSource próprio).
                     val interChip = remember(rotulo) { MutableInteractionSource() }
+                    val sel = filtro == local
+                    val chipFundo = if (escuro) Cesto else Papel
+                    val chipBorda = if (escuro) BordaNoite else LinhaBorda
                     FilterChip(
-                        selected = filtro == local,
+                        selected = sel,
                         onClick = { vm.filtrar(local) },
-                        label = { Text(rotulo, maxLines = 1) },
+                        label = {
+                            Text(
+                                rotulo,
+                                maxLines = 1,
+                                color = if (sel) Color.White else if (escuro) CafeNoite else CafeClaro
+                            )
+                        },
                         interactionSource = interChip,
                         modifier = Modifier.escalaPress(interChip, calmo),
+                        shape = CircleShape,
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = RoxoEletrico,
-                            selectedLabelColor = Color.White
+                            selectedContainerColor = VerdeFolha,
+                            selectedLabelColor = Color.White,
+                            containerColor = chipFundo
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = sel,
+                            borderColor = chipBorda,
+                            selectedBorderColor = VerdeFolha,
+                            disabledBorderColor = chipBorda,
+                            borderWidth = 1.dp,
+                            selectedBorderWidth = 1.dp
                         )
                     )
                 }
@@ -444,13 +433,19 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
                     }
                 }
             } else if (itens.isEmpty()) {
-                Text(
-                    if (busca.isBlank()) "Estoque vazio — toque em Adicionar para cadastrar em <15s."
-                    else "Nada encontrado para \"$busca\".",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 24.dp)
-                )
+                Column(modifier = Modifier.padding(vertical = 24.dp)) {
+                    Text(
+                        "Sua feira está vazia 🧺",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        if (busca.isBlank()) "Toque em Adicionar para cadastrar em <15s."
+                        else "Nada encontrado para \"$busca\".",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             } else {
                 LazyColumn(
                     contentPadding = PaddingValues(bottom = 88.dp),
@@ -512,8 +507,8 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
 }
 
 /**
- * Swipe de baixa (US05): direita (start→end, LimaNeon + Check) = Consumir;
- * esquerda (end→start, Pimenta + Delete) = Descartar.
+ * Swipe de baixa (US05): direita (start→end, VerdeFolha + Check) = Consumir;
+ * esquerda (end→start, PimentaQueimada + Delete) = Descartar. Cantos 24dp.
  * P3: HapticFeedback no confirmValueChange (gesto físico, não só visual).
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -547,36 +542,35 @@ private fun ItemDeslizavel(
         backgroundContent = {
             val direcao = estado.targetValue
             val paraDireita = direcao == SwipeToDismissBoxValue.StartToEnd
-            val cor = if (paraDireita) LimaNeon else Pimenta
-            val tinta = if (paraDireita) UvaNoite else Color.White
+            val cor = if (paraDireita) VerdeFolha else PimentaQueimada
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(cor, RoundedCornerShape(18.dp))
+                    .background(cor, RoundedCornerShape(24.dp))
                     .padding(horizontal = 16.dp),
                 contentAlignment = if (paraDireita) Alignment.CenterStart else Alignment.CenterEnd
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (paraDireita) {
-                        Icon(Icons.Filled.Check, contentDescription = null, tint = tinta)
+                        Icon(Icons.Filled.Check, contentDescription = null, tint = Color.White)
                         Spacer(Modifier.width(8.dp))
                         Text(
                             "Consumir ${item.nome}",
-                            fontWeight = FontWeight.Black,
-                            color = tinta,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                     } else {
                         Text(
                             "Descartar ${item.nome}",
-                            fontWeight = FontWeight.Black,
-                            color = tinta,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Spacer(Modifier.width(8.dp))
-                        Icon(Icons.Filled.Delete, contentDescription = null, tint = tinta)
+                        Icon(Icons.Filled.Delete, contentDescription = null, tint = Color.White)
                     }
                 }
             }
@@ -597,213 +591,153 @@ private fun EstoqueCard(
     val status = statusValidade(item.validade, agora)
     val dias = diasParaVencer(item.validade, agora)
     val escuro = isSystemInDarkTheme()
-    val corAlvo = corFundoSticker(status, escuro)
+    val corSelo = corFundoSelo(status, escuro)
+    val tintaSelo = corTextoSelo(status, escuro)
+    val anel = corAnelFrescor(status, escuro)
     var menuAberto by remember { mutableStateOf(false) }
     var ampliada by remember { mutableStateOf(false) }
     val temFoto = FotoStore.fotoExiste(item.fotoPath)
 
-    // E07 — sticker com cor animada (250ms) + pop keyed no status:
-    // 1.0 → 1.18 → 1.0 spring(500, 0.5) ≤250ms, rotação −3° → −1° → −3°.
-    // Reduce-motion: troca instantânea, sem pop.
+    // Selo pílula: troca de cor animada 250ms, sem pop, sem rotação, sem glow.
     val corSticker by androidx.compose.animation.animateColorAsState(
-        targetValue = corAlvo,
+        targetValue = corSelo,
         animationSpec = specCalma(tween(Dur.P250, easing = FastOutSlowInEasing), calmo),
         label = "sticker-cor"
     )
-    var popOn by remember { mutableStateOf(false) }
-    LaunchedEffect(status) {
-        if (!calmo) {
-            popOn = true
-            delay(125)
-            popOn = false
-        }
-    }
-    val popS by animateFloatAsState(
-        targetValue = if (popOn && !calmo) 1.18f else 1f,
-        animationSpec = specCalma(spring(stiffness = 500f, dampingRatio = 0.5f), calmo),
-        label = "sticker-pop"
-    )
-    val popR by animateFloatAsState(
-        targetValue = if (popOn && !calmo) -1f else -3f,
-        animationSpec = specCalma(spring(stiffness = 500f, dampingRatio = 0.5f), calmo),
-        label = "sticker-rot"
-    )
-    val venceu = status == StatusValidade.VENCIDO
 
     // E06 — press scale nos tocáveis do card (thumb + menu).
     val interThumb = remember(item.id) { MutableInteractionSource() }
     val interMenu = remember(item.id) { MutableInteractionSource() }
 
-    // E05 — sombra dura deslocada 4dp (sólida, sem blur) + expansão com
-    // spring(300, 0.7). Contenção: nada de Modifier.shadow/blur no item.
-    Box(modifier = Modifier.fillMaxWidth()) {
-        Box(
-            Modifier
-                .matchParentSize()
-                .padding(start = 4.dp, top = 4.dp)
-                .background(Tinta, RoundedCornerShape(18.dp))
-        )
-        OutlinedCard(
+    // §(b) — card 24dp, borda 1dp outline, sombra suave quente + expansão com
+    // spring(300, 0.7). Contenção: nada de glow/blur no item.
+    OutlinedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .sombraFeira(escuro, RoundedCornerShape(24.dp))
+            .animateContentSize(
+                animationSpec = specCalma(
+                    spring(stiffness = 300f, dampingRatio = 0.7f),
+                    calmo
+                )
+            ),
+        shape = RoundedCornerShape(24.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .animateContentSize(
-                    animationSpec = specCalma(
-                        spring(stiffness = 300f, dampingRatio = 0.7f),
-                        calmo
-                    )
-                ),
-            shape = RoundedCornerShape(18.dp),
-            border = BorderStroke(2.dp, Tinta.copy(alpha = 0.9f)),
-            colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+            // Thumbnail 64dp círculo + anel de frescor 3dp; sem foto: fundo
+            // Areia + ícone Image em CafeClaro. Toque amplia (TalkBack).
+            ThumbFeira(
+                nome = item.nome,
+                fotoPath = item.fotoPath,
+                temFoto = temFoto,
+                anel = anel,
+                interThumb = interThumb,
+                calmo = calmo,
+                onAmpliar = { ampliada = true }
+            )
+            Spacer(Modifier.width(8.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    item.nome,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    "${formatarQtd(item.quantidade)} ${item.unidade} • ${rotuloLocal(item.local)}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    when {
+                        item.validade == null -> "Sem validade"
+                        dias != null && dias < 0 -> "Venceu há ${-dias}d • ${formatarData(item.validade)}"
+                        dias != null && dias == 0 -> "Vence hoje • ${formatarData(item.validade)}"
+                        dias != null -> "Vence em ${dias}d • ${formatarData(item.validade)}"
+                        else -> formatarData(item.validade)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            // Selo de validade em pílula calma 0° (FRESCO/ATENÇÃO/VENCEU/SEM).
+            Surface(
+                color = corSticker,
+                contentColor = tintaSelo,
+                shape = CircleShape
             ) {
-                // Issue #1: thumbnail 56dp da foto; toque amplia (contentDescription p/ TalkBack).
-                if (temFoto) {
-                    val bitmap = remember(item.fotoPath) {
-                        FotoStore.decodificarAmostrado(item.fotoPath!!)
-                    }
-                    if (bitmap != null) {
-                        Image(
-                            bitmap = bitmap.asImageBitmap(),
-                            contentDescription = "Foto de ${item.nome}. Toque para ampliar",
-                            modifier = Modifier
-                                .size(56.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .escalaPress(interThumb, calmo)
-                                .clickable(
-                                    interactionSource = interThumb,
-                                    indication = androidx.compose.foundation.LocalIndication.current,
-                                    onClickLabel = "Ampliar foto de ${item.nome}"
-                                ) { ampliada = true }
-                        )
-                    } else {
-                        Icon(
-                            Icons.Filled.Image,
-                            contentDescription = null,
-                            modifier = Modifier.size(56.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                } else {
-                    Icon(
-                        Icons.Filled.Image,
-                        contentDescription = null,
-                        modifier = Modifier.size(56.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                    )
-                }
-                Spacer(Modifier.width(8.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        item.nome,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        "${formatarQtd(item.quantidade)} ${item.unidade} • ${rotuloLocal(item.local)}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        when {
-                            item.validade == null -> "Sem validade"
-                            dias != null && dias < 0 -> "Venceu há ${-dias}d • ${formatarData(item.validade)}"
-                            dias != null && dias == 0 -> "Vence hoje • ${formatarData(item.validade)}"
-                            dias != null -> "Vence em ${dias}d • ${formatarData(item.validade)}"
-                            else -> formatarData(item.validade)
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1
-                    )
-                }
-                Spacer(Modifier.width(8.dp))
-                // Sticker de validade rotacionado −3° (identidade: selos sempre em caixa alta).
-                // VENCEU: borda White 1dp + glow Pimenta 40% blur 8dp
-                // (só no sticker — viewport tem ≤3, contenção §2.1).
-                Surface(
-                    color = corSticker,
-                    contentColor = if (status == StatusValidade.FRESCO || status == StatusValidade.ATENCAO) UvaNoite else Color.White,
-                    shape = RoundedCornerShape(8.dp),
+                Text(
+                    rotuloStatus(status),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    letterSpacing = 0.5.sp,
+                    maxLines = 1,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                )
+            }
+            // Issue #3: swipe não é acessível — Consumir/Descartar também no menu "···".
+            Box {
+                IconButton(
+                    onClick = { menuAberto = true },
+                    interactionSource = interMenu,
                     modifier = Modifier
-                        .graphicsLayer(rotationZ = popR, scaleX = popS, scaleY = popS)
-                        .shadow(
-                            if (venceu) 8.dp else 0.dp,
-                            RoundedCornerShape(8.dp),
-                            spotColor = Pimenta.copy(alpha = 0.4f)
-                        )
-                        .then(
-                            if (venceu) Modifier.border(
-                                1.dp,
-                                Color.White,
-                                RoundedCornerShape(8.dp)
-                            ) else Modifier
-                        )
+                        .escalaPress(interMenu, calmo)
+                        .semantics {
+                            onClick(label = "Mais ações para ${item.nome}", action = null)
+                        }
                 ) {
-                    Text(
-                        rotuloStatus(status),
-                        fontWeight = FontWeight.Black,
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
-                    )
+                    Icon(Icons.Filled.MoreVert, contentDescription = "Mais ações para ${item.nome}")
                 }
-                // Issue #3: swipe não é acessível — Consumir/Descartar também no menu "···".
-                Box {
-                    IconButton(
-                        onClick = { menuAberto = true },
-                        interactionSource = interMenu,
-                        modifier = Modifier
-                            .escalaPress(interMenu, calmo)
-                            .semantics {
-                                onClick(label = "Mais ações para ${item.nome}", action = null)
-                            }
-                    ) {
-                        Icon(Icons.Filled.MoreVert, contentDescription = "Mais ações para ${item.nome}")
-                    }
-                    DropdownMenu(expanded = menuAberto, onDismissRequest = { menuAberto = false }) {
-                        DropdownMenuItem(
-                            text = { Text("Consumir") },
-                            onClick = { menuAberto = false; onConsumir() },
-                            leadingIcon = { Icon(Icons.Filled.Check, contentDescription = null) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Descartar") },
-                            onClick = { menuAberto = false; onDescartar() },
-                            leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Remover sem baixa") },
-                            onClick = { menuAberto = false; onRemover() },
-                            leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) }
-                        )
-                    }
+                DropdownMenu(expanded = menuAberto, onDismissRequest = { menuAberto = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Consumir") },
+                        onClick = { menuAberto = false; onConsumir() },
+                        leadingIcon = { Icon(Icons.Filled.Check, contentDescription = null) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Descartar") },
+                        onClick = { menuAberto = false; onDescartar() },
+                        leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Remover sem baixa") },
+                        onClick = { menuAberto = false; onRemover() },
+                        leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) }
+                    )
                 }
             }
         }
     }
 
-    // Diálogo com a foto ampliada (issue #1).
+    // Diálogo com a foto ampliada (issue #1): 28dp, foto retangular 24dp.
     if (ampliada && temFoto) {
         val grande = remember(item.fotoPath) {
             FotoStore.decodificarAmostrado(item.fotoPath!!, 1024)
         }
+        val escuroDialogo = isSystemInDarkTheme()
         AlertDialog(
             onDismissRequest = { ampliada = false },
-            title = { Text(item.nome, fontWeight = FontWeight.Bold) },
+            shape = RoundedCornerShape(28.dp),
+            containerColor = if (escuroDialogo) Cesto else Papel,
+            title = { Text(item.nome, style = MaterialTheme.typography.titleLarge) },
             text = {
                 if (grande != null) {
                     Image(
                         bitmap = grande.asImageBitmap(),
                         contentDescription = "Foto ampliada de ${item.nome}",
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(24.dp))
                     )
                 } else {
                     Text("Não foi possível carregar a foto.")
@@ -818,6 +752,68 @@ private fun EstoqueCard(
                 ) { Text("Fechar") }
             }
         )
+    }
+}
+
+/** Thumb 64dp círculo + anel de frescor 3dp (§b). */
+@Composable
+private fun ThumbFeira(
+    nome: String,
+    fotoPath: String?,
+    temFoto: Boolean,
+    anel: Color,
+    interThumb: MutableInteractionSource,
+    calmo: Boolean,
+    onAmpliar: () -> Unit
+) {
+    val moldura = Modifier
+        .size(64.dp)
+        .border(3.dp, anel, CircleShape)
+        .clip(CircleShape)
+    val escuroThumb = isSystemInDarkTheme()
+    val fundoVazio = if (escuroThumb) Cesto else Areia
+    val tintaVazia = if (escuroThumb) CafeNoite else CafeClaro
+    if (temFoto) {
+        val bitmap = remember(fotoPath) {
+            FotoStore.decodificarAmostrado(fotoPath!!)
+        }
+        if (bitmap != null) {
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = "Foto de $nome. Toque para ampliar",
+                modifier = moldura
+                    .escalaPress(interThumb, calmo)
+                    .clickable(
+                        interactionSource = interThumb,
+                        indication = androidx.compose.foundation.LocalIndication.current,
+                        onClickLabel = "Ampliar foto de $nome"
+                    ) { onAmpliar() }
+            )
+        } else {
+            Box(
+                modifier = moldura.background(fundoVazio, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Filled.Image,
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp),
+                    tint = tintaVazia
+                )
+            }
+        }
+    } else {
+        Box(
+            modifier = moldura.background(fundoVazio, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Filled.Image,
+                contentDescription = null,
+                modifier = Modifier.size(28.dp),
+                tint = tintaVazia
+            )
+        }
     }
 }
 
@@ -846,6 +842,8 @@ private fun DialogoCadastro(
     val escopo = rememberCoroutineScope()
     val interSalvar = remember { MutableInteractionSource() }
     val interFoto = remember { MutableInteractionSource() }
+    val escuro = isSystemInDarkTheme()
+    val campo16 = RoundedCornerShape(16.dp)
 
     // Issue #1: TakePicture SEM permissão CAMERA — Uri FileProvider p/ o app de câmera.
     var fotoTemp: java.io.File? by remember { mutableStateOf(null) }
@@ -882,7 +880,9 @@ private fun DialogoCadastro(
 
     AlertDialog(
         onDismissRequest = onFechar,
-        title = { Text("Novo item", fontWeight = FontWeight.Bold) },
+        shape = RoundedCornerShape(28.dp),
+        containerColor = if (escuro) Cesto else Papel,
+        title = { Text("Novo item", style = MaterialTheme.typography.titleLarge) },
         text = {
             Column {
                 OutlinedTextField(
@@ -890,7 +890,8 @@ private fun DialogoCadastro(
                     onValueChange = { nome = it },
                     label = { Text("Nome*") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    shape = campo16
                 )
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -900,6 +901,7 @@ private fun DialogoCadastro(
                         label = { Text("Qtd") },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
+                        shape = campo16,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
                     ExposedDropdownMenuBox(
@@ -914,7 +916,8 @@ private fun DialogoCadastro(
                             label = { Text("Unidade") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandUn) },
                             modifier = Modifier.menuAnchor().fillMaxWidth(),
-                            singleLine = true
+                            singleLine = true,
+                            shape = campo16
                         )
                         ExposedDropdownMenu(expanded = expandUn, onDismissRequest = { expandUn = false }) {
                             UNIDADES.forEach { u ->
@@ -930,6 +933,7 @@ private fun DialogoCadastro(
                     label = { Text("Preço R$ (opcional)") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
+                    shape = campo16,
                     placeholder = { Text("ex 4,99") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                 )
@@ -940,6 +944,7 @@ private fun DialogoCadastro(
                     label = { Text("Validade (dd/MM/yyyy, opcional)") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
+                    shape = campo16,
                     placeholder = { Text("ex 25/12/2026") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     trailingIcon = {
@@ -966,7 +971,8 @@ private fun DialogoCadastro(
                         label = { Text("Local") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandLocal) },
                         modifier = Modifier.menuAnchor().fillMaxWidth(),
-                        singleLine = true
+                        singleLine = true,
+                        shape = campo16
                     )
                     ExposedDropdownMenu(expanded = expandLocal, onDismissRequest = { expandLocal = false }) {
                         LocalEstoque.values().forEach { l ->
@@ -993,8 +999,9 @@ private fun DialogoCadastro(
                             bitmap = mini.asImageBitmap(),
                             contentDescription = "Foto capturada para o item",
                             modifier = Modifier
-                                .size(56.dp)
-                                .clip(RoundedCornerShape(12.dp))
+                                .size(64.dp)
+                                .border(3.dp, CafeClaro, CircleShape)
+                                .clip(CircleShape)
                         )
                     } else {
                         Icon(
@@ -1053,7 +1060,10 @@ private fun DialogoCadastro(
                     onSalvar(nome, qtd!!, unidade, validade, local, preco, fotoPath)
                 },
                 interactionSource = interSalvar,
-                colors = ButtonDefaults.buttonColors(containerColor = LimaNeon, contentColor = UvaNoite),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Tomate,
+                    contentColor = MaterialTheme.colorScheme.onSecondary
+                ),
                 modifier = Modifier.escalaPress(interSalvar, calmo)
             ) { Text("Salvar", fontWeight = FontWeight.Bold) }
         },
