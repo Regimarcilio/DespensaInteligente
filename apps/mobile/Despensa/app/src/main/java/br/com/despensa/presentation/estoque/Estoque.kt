@@ -6,10 +6,30 @@ import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,6 +46,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -62,8 +83,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -71,10 +94,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
@@ -99,15 +125,22 @@ import br.com.despensa.domain.statusValidade
 import br.com.despensa.domain.validarCadastro
 import br.com.despensa.domain.valorTotalBaixa
 import br.com.despensa.presentation.theme.Ambar
+import br.com.despensa.presentation.theme.Dur
+import br.com.despensa.presentation.theme.EsqueletoCard
 import br.com.despensa.presentation.theme.LimaNeon
 import br.com.despensa.presentation.theme.Pimenta
 import br.com.despensa.presentation.theme.PimentaEscura
 import br.com.despensa.presentation.theme.RoxoEletrico
 import br.com.despensa.presentation.theme.Tinta
 import br.com.despensa.presentation.theme.UvaNoite
+import br.com.despensa.presentation.theme.atrasoStagger
+import br.com.despensa.presentation.theme.escalaPress
+import br.com.despensa.presentation.theme.lembrarMovimentoReduzido
+import br.com.despensa.presentation.theme.specCalma
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -261,7 +294,9 @@ private fun corStatus(s: StatusValidade): Color = when (s) {
     StatusValidade.VENCIDO -> Pimenta
     StatusValidade.ATENCAO -> Ambar
     StatusValidade.FRESCO -> LimaNeon
-    StatusValidade.SEM_VALIDADE -> Color(0xFF9E9E9E)
+    // §2.2 AA: 0xFF9E9E9E sobre dark reprova como texto — selo pequeno elevado
+    // p/ 0xFFBDBDBD em 11sp Black.
+    StatusValidade.SEM_VALIDADE -> Color(0xFFBDBDBD)
 }
 
 /**
@@ -281,6 +316,42 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
     var dialogoAberto by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
     val escopo = rememberCoroutineScope()
+    val calmo = lembrarMovimentoReduzido()
+
+    // E08 — janela de primeira coleta (WhileSubscribed): skeleton com shimmer
+    // em vez do "Estoque vazio…" enquanto o banco popula. Sem mudar fluxos:
+    // só timing de UI; com banco populado os itens chegam e o skeleton sai.
+    var frio by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        delay(600)
+        frio = false
+    }
+    val mostrandoSkeleton = frio && itens.isEmpty() && busca.isBlank() && filtro == null
+
+    // E04 — marca ids já animados: scroll de volta não re-anima.
+    val vistos = remember { mutableStateMapOf<String, Boolean>() }
+
+    // E06+E10 — FAB: press 0.97 × pulse 1.0→1.04 (1800ms Reverse infinito).
+    val interFab = remember { MutableInteractionSource() }
+    val fabPressionado by interFab.collectIsPressedAsState()
+    val fabPress by animateFloatAsState(
+        targetValue = if (fabPressionado && !calmo) 0.97f else 1f,
+        animationSpec = specCalma(tween(Dur.P120, easing = FastOutSlowInEasing), calmo),
+        label = "fab-press"
+    )
+    val fabPulse by if (calmo) {
+        remember { mutableStateOf(1f) }
+    } else {
+        rememberInfiniteTransition(label = "fab-pulse").animateFloat(
+            initialValue = 1f,
+            targetValue = 1.04f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1800),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "fab-pulse-fase"
+        )
+    }
 
     fun avisar(msg: String) {
         escopo.launch { snackbar.showSnackbar(msg) }
@@ -289,17 +360,37 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { dialogoAberto = true },
-                modifier = Modifier.semantics {
-                    contentDescription = "Adicionar item ao estoque"
-                    onClick(label = "Adicionar item ao estoque", action = null)
-                },
-                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text("Adicionar", fontWeight = FontWeight.Bold) },
-                containerColor = LimaNeon,
-                contentColor = UvaNoite
-            )
+            // E10 — some (shrink 200ms) quando o diálogo abre.
+            AnimatedVisibility(
+                visible = !dialogoAberto,
+                enter = scaleIn(specCalma(tween(Dur.P200), calmo)) +
+                    fadeIn(specCalma(tween(Dur.P200), calmo)),
+                exit = scaleOut(specCalma(tween(Dur.P200), calmo)) +
+                    fadeOut(specCalma(tween(Dur.P200), calmo)),
+                label = "fab-some"
+            ) {
+                ExtendedFloatingActionButton(
+                    onClick = { dialogoAberto = true },
+                    modifier = Modifier
+                        .semantics {
+                            contentDescription = "Adicionar item ao estoque"
+                            onClick(label = "Adicionar item ao estoque", action = null)
+                        }
+                        .graphicsLayer(scaleX = fabPress * fabPulse, scaleY = fabPress * fabPulse)
+                        // E10 — glow LimaNeon 35% blur 8dp SÓ no FAB
+                        // (1 shadow, fora da lista rolável).
+                        .shadow(
+                            8.dp,
+                            RoundedCornerShape(16.dp),
+                            spotColor = LimaNeon.copy(alpha = 0.35f)
+                        ),
+                    interactionSource = interFab,
+                    icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                    text = { Text("Adicionar", fontWeight = FontWeight.Bold) },
+                    containerColor = LimaNeon,
+                    contentColor = UvaNoite
+                )
+            }
         }
     ) { pad ->
         Column(
@@ -329,10 +420,14 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
             Spacer(Modifier.height(8.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(LOCAIS_FILTRO) { (rotulo, local) ->
+                    // E06 — FilterChip com press scale (interactionSource próprio).
+                    val interChip = remember(rotulo) { MutableInteractionSource() }
                     FilterChip(
                         selected = filtro == local,
                         onClick = { vm.filtrar(local) },
                         label = { Text(rotulo, maxLines = 1) },
+                        interactionSource = interChip,
+                        modifier = Modifier.escalaPress(interChip, calmo),
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = RoxoEletrico,
                             selectedLabelColor = Color.White
@@ -341,7 +436,14 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
                 }
             }
             Spacer(Modifier.height(8.dp))
-            if (itens.isEmpty()) {
+            if (mostrandoSkeleton) {
+                // E08 — 3 fantasmas com shimmer (estáticos com calmo).
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    repeat(3) {
+                        EsqueletoCard(calmo = calmo, descricao = "Carregando estoque")
+                    }
+                }
+            } else if (itens.isEmpty()) {
                 Text(
                     if (busca.isBlank()) "Estoque vazio — toque em Adicionar para cadastrar em <15s."
                     else "Nada encontrado para \"$busca\".",
@@ -354,19 +456,43 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
                     contentPadding = PaddingValues(bottom = 88.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    items(itens, key = { it.id }) { item ->
-                        ItemDeslizavel(
-                            item = item,
-                            onConsumir = { vm.darBaixa(item, MotivoBaixa.CONSUMIDO, ::avisar) },
-                            onDescartar = { vm.darBaixa(item, MotivoBaixa.DESCARTADO, ::avisar) }
+                    itemsIndexed(itens, key = { _, it -> it.id }) { index, item ->
+                        // E04 — entrada escalonada: fade 220 + slideY it/6 +
+                        // scale 0.96, delay min(index*40, 400). Só 1ª composição.
+                        val primeira = vistos[item.id] != true
+                        val atraso = atrasoStagger(index)
+                        AnimatedVisibility(
+                            visible = true,
+                            enter = if (!primeira || calmo) EnterTransition.None else (
+                                fadeIn(tween(Dur.P200 + 20, delayMillis = atraso)) +
+                                    slideInVertically(
+                                        tween(Dur.P200 + 80, delayMillis = atraso)
+                                    ) { it / 6 } +
+                                    scaleIn(
+                                        initialScale = 0.96f,
+                                        animationSpec = tween(Dur.P200 + 80, delayMillis = atraso)
+                                    )
+                                ),
+                            // Saída de baixa confirmada: fade + encolhe, 200ms.
+                            exit = fadeOut(tween(Dur.P200)) +
+                                shrinkVertically(tween(Dur.P200)),
+                            label = "stagger-$index"
                         ) {
-                            EstoqueCard(
+                            ItemDeslizavel(
                                 item = item,
                                 onConsumir = { vm.darBaixa(item, MotivoBaixa.CONSUMIDO, ::avisar) },
-                                onDescartar = { vm.darBaixa(item, MotivoBaixa.DESCARTADO, ::avisar) },
-                                onRemover = { vm.remover(item.id) }
-                            )
+                                onDescartar = { vm.darBaixa(item, MotivoBaixa.DESCARTADO, ::avisar) }
+                            ) {
+                                EstoqueCard(
+                                    item = item,
+                                    onConsumir = { vm.darBaixa(item, MotivoBaixa.CONSUMIDO, ::avisar) },
+                                    onDescartar = { vm.darBaixa(item, MotivoBaixa.DESCARTADO, ::avisar) },
+                                    onRemover = { vm.remover(item.id) },
+                                    calmo = calmo
+                                )
+                            }
                         }
+                        LaunchedEffect(item.id) { vistos[item.id] = true }
                     }
                 }
             }
@@ -379,7 +505,8 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
             onSalvar = { nome, qtd, un, val_, local, preco, foto ->
                 vm.salvar(nome, qtd, un, val_, local, preco, foto)
                 dialogoAberto = false
-            }
+            },
+            calmo = calmo
         )
     }
 }
@@ -387,6 +514,7 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
 /**
  * Swipe de baixa (US05): direita (start→end, LimaNeon + Check) = Consumir;
  * esquerda (end→start, Pimenta + Delete) = Descartar.
+ * P3: HapticFeedback no confirmValueChange (gesto físico, não só visual).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -396,14 +524,17 @@ private fun ItemDeslizavel(
     onDescartar: () -> Unit,
     conteudo: @Composable () -> Unit
 ) {
+    val haptico = LocalHapticFeedback.current
     val estado = rememberSwipeToDismissBoxState(
         confirmValueChange = { direcao ->
             when (direcao) {
                 SwipeToDismissBoxValue.StartToEnd -> {
+                    haptico.performHapticFeedback(HapticFeedbackType.LongPress)
                     onConsumir()
                     true
                 }
                 SwipeToDismissBoxValue.EndToStart -> {
+                    haptico.performHapticFeedback(HapticFeedbackType.LongPress)
                     onDescartar()
                     true
                 }
@@ -459,130 +590,201 @@ private fun EstoqueCard(
     item: EstoqueEntity,
     onConsumir: () -> Unit,
     onDescartar: () -> Unit,
-    onRemover: () -> Unit
+    onRemover: () -> Unit,
+    calmo: Boolean = false
 ) {
     val agora = System.currentTimeMillis()
     val status = statusValidade(item.validade, agora)
     val dias = diasParaVencer(item.validade, agora)
     val escuro = isSystemInDarkTheme()
-    val cor = corFundoSticker(status, escuro)
+    val corAlvo = corFundoSticker(status, escuro)
     var menuAberto by remember { mutableStateOf(false) }
     var ampliada by remember { mutableStateOf(false) }
     val temFoto = FotoStore.fotoExiste(item.fotoPath)
 
-    OutlinedCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(2.dp, Tinta.copy(alpha = 0.9f)),
-        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Row(
+    // E07 — sticker com cor animada (250ms) + pop keyed no status:
+    // 1.0 → 1.18 → 1.0 spring(500, 0.5) ≤250ms, rotação −3° → −1° → −3°.
+    // Reduce-motion: troca instantânea, sem pop.
+    val corSticker by androidx.compose.animation.animateColorAsState(
+        targetValue = corAlvo,
+        animationSpec = specCalma(tween(Dur.P250, easing = FastOutSlowInEasing), calmo),
+        label = "sticker-cor"
+    )
+    var popOn by remember { mutableStateOf(false) }
+    LaunchedEffect(status) {
+        if (!calmo) {
+            popOn = true
+            delay(125)
+            popOn = false
+        }
+    }
+    val popS by animateFloatAsState(
+        targetValue = if (popOn && !calmo) 1.18f else 1f,
+        animationSpec = specCalma(spring(stiffness = 500f, dampingRatio = 0.5f), calmo),
+        label = "sticker-pop"
+    )
+    val popR by animateFloatAsState(
+        targetValue = if (popOn && !calmo) -1f else -3f,
+        animationSpec = specCalma(spring(stiffness = 500f, dampingRatio = 0.5f), calmo),
+        label = "sticker-rot"
+    )
+    val venceu = status == StatusValidade.VENCIDO
+
+    // E06 — press scale nos tocáveis do card (thumb + menu).
+    val interThumb = remember(item.id) { MutableInteractionSource() }
+    val interMenu = remember(item.id) { MutableInteractionSource() }
+
+    // E05 — sombra dura deslocada 4dp (sólida, sem blur) + expansão com
+    // spring(300, 0.7). Contenção: nada de Modifier.shadow/blur no item.
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Box(
+            Modifier
+                .matchParentSize()
+                .padding(start = 4.dp, top = 4.dp)
+                .background(Tinta, RoundedCornerShape(18.dp))
+        )
+        OutlinedCard(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Issue #1: thumbnail 56dp da foto; toque amplia (contentDescription p/ TalkBack).
-            if (temFoto) {
-                val bitmap = remember(item.fotoPath) {
-                    FotoStore.decodificarAmostrado(item.fotoPath!!)
-                }
-                if (bitmap != null) {
-                    Image(
-                        bitmap = bitmap.asImageBitmap(),
-                        contentDescription = "Foto de ${item.nome}. Toque para ampliar",
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable(
-                                onClickLabel = "Ampliar foto de ${item.nome}"
-                            ) { ampliada = true }
+                .animateContentSize(
+                    animationSpec = specCalma(
+                        spring(stiffness = 300f, dampingRatio = 0.7f),
+                        calmo
                     )
+                ),
+            shape = RoundedCornerShape(18.dp),
+            border = BorderStroke(2.dp, Tinta.copy(alpha = 0.9f)),
+            colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Issue #1: thumbnail 56dp da foto; toque amplia (contentDescription p/ TalkBack).
+                if (temFoto) {
+                    val bitmap = remember(item.fotoPath) {
+                        FotoStore.decodificarAmostrado(item.fotoPath!!)
+                    }
+                    if (bitmap != null) {
+                        Image(
+                            bitmap = bitmap.asImageBitmap(),
+                            contentDescription = "Foto de ${item.nome}. Toque para ampliar",
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .escalaPress(interThumb, calmo)
+                                .clickable(
+                                    interactionSource = interThumb,
+                                    indication = androidx.compose.foundation.LocalIndication.current,
+                                    onClickLabel = "Ampliar foto de ${item.nome}"
+                                ) { ampliada = true }
+                        )
+                    } else {
+                        Icon(
+                            Icons.Filled.Image,
+                            contentDescription = null,
+                            modifier = Modifier.size(56.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 } else {
                     Icon(
                         Icons.Filled.Image,
                         contentDescription = null,
                         modifier = Modifier.size(56.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                     )
                 }
-            } else {
-                Icon(
-                    Icons.Filled.Image,
-                    contentDescription = null,
-                    modifier = Modifier.size(56.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                )
-            }
-            Spacer(Modifier.width(8.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    item.nome,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    "${formatarQtd(item.quantidade)} ${item.unidade} • ${rotuloLocal(item.local)}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    when {
-                        item.validade == null -> "Sem validade"
-                        dias != null && dias < 0 -> "Venceu há ${-dias}d • ${formatarData(item.validade)}"
-                        dias != null && dias == 0 -> "Vence hoje • ${formatarData(item.validade)}"
-                        dias != null -> "Vence em ${dias}d • ${formatarData(item.validade)}"
-                        else -> formatarData(item.validade)
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 1
-                )
-            }
-            Spacer(Modifier.width(8.dp))
-            // Sticker de validade rotacionado −3° (identidade: selos sempre em caixa alta).
-            Surface(
-                color = cor,
-                contentColor = if (status == StatusValidade.FRESCO || status == StatusValidade.ATENCAO) UvaNoite else Color.White,
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.graphicsLayer { rotationZ = -3f }
-            ) {
-                Text(
-                    rotuloStatus(status),
-                    fontWeight = FontWeight.Black,
-                    fontSize = 11.sp,
-                    maxLines = 1,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
-                )
-            }
-            // Issue #3: swipe não é acessível — Consumir/Descartar também no menu "···".
-            Box {
-                IconButton(
-                    onClick = { menuAberto = true },
-                    modifier = Modifier.semantics {
-                        onClick(label = "Mais ações para ${item.nome}", action = null)
-                    }
+                Spacer(Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        item.nome,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        "${formatarQtd(item.quantidade)} ${item.unidade} • ${rotuloLocal(item.local)}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        when {
+                            item.validade == null -> "Sem validade"
+                            dias != null && dias < 0 -> "Venceu há ${-dias}d • ${formatarData(item.validade)}"
+                            dias != null && dias == 0 -> "Vence hoje • ${formatarData(item.validade)}"
+                            dias != null -> "Vence em ${dias}d • ${formatarData(item.validade)}"
+                            else -> formatarData(item.validade)
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                // Sticker de validade rotacionado −3° (identidade: selos sempre em caixa alta).
+                // VENCEU: borda White 1dp + glow Pimenta 40% blur 8dp
+                // (só no sticker — viewport tem ≤3, contenção §2.1).
+                Surface(
+                    color = corSticker,
+                    contentColor = if (status == StatusValidade.FRESCO || status == StatusValidade.ATENCAO) UvaNoite else Color.White,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .graphicsLayer(rotationZ = popR, scaleX = popS, scaleY = popS)
+                        .shadow(
+                            if (venceu) 8.dp else 0.dp,
+                            RoundedCornerShape(8.dp),
+                            spotColor = Pimenta.copy(alpha = 0.4f)
+                        )
+                        .then(
+                            if (venceu) Modifier.border(
+                                1.dp,
+                                Color.White,
+                                RoundedCornerShape(8.dp)
+                            ) else Modifier
+                        )
                 ) {
-                    Icon(Icons.Filled.MoreVert, contentDescription = "Mais ações para ${item.nome}")
+                    Text(
+                        rotuloStatus(status),
+                        fontWeight = FontWeight.Black,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                    )
                 }
-                DropdownMenu(expanded = menuAberto, onDismissRequest = { menuAberto = false }) {
-                    DropdownMenuItem(
-                        text = { Text("Consumir") },
-                        onClick = { menuAberto = false; onConsumir() },
-                        leadingIcon = { Icon(Icons.Filled.Check, contentDescription = null) }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Descartar") },
-                        onClick = { menuAberto = false; onDescartar() },
-                        leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Remover sem baixa") },
-                        onClick = { menuAberto = false; onRemover() },
-                        leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) }
-                    )
+                // Issue #3: swipe não é acessível — Consumir/Descartar também no menu "···".
+                Box {
+                    IconButton(
+                        onClick = { menuAberto = true },
+                        interactionSource = interMenu,
+                        modifier = Modifier
+                            .escalaPress(interMenu, calmo)
+                            .semantics {
+                                onClick(label = "Mais ações para ${item.nome}", action = null)
+                            }
+                    ) {
+                        Icon(Icons.Filled.MoreVert, contentDescription = "Mais ações para ${item.nome}")
+                    }
+                    DropdownMenu(expanded = menuAberto, onDismissRequest = { menuAberto = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Consumir") },
+                            onClick = { menuAberto = false; onConsumir() },
+                            leadingIcon = { Icon(Icons.Filled.Check, contentDescription = null) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Descartar") },
+                            onClick = { menuAberto = false; onDescartar() },
+                            leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Remover sem baixa") },
+                            onClick = { menuAberto = false; onRemover() },
+                            leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) }
+                        )
+                    }
                 }
             }
         }
@@ -626,7 +828,8 @@ private fun formatarQtd(qtd: Double): String =
 @Composable
 private fun DialogoCadastro(
     onFechar: () -> Unit,
-    onSalvar: (nome: String, qtd: Double, unidade: String, validade: Long?, local: LocalEstoque, precoRef: Double?, fotoPath: String?) -> Unit
+    onSalvar: (nome: String, qtd: Double, unidade: String, validade: Long?, local: LocalEstoque, precoRef: Double?, fotoPath: String?) -> Unit,
+    calmo: Boolean = false
 ) {
     var nome by remember { mutableStateOf("") }
     var qtdTxt by remember { mutableStateOf("1") }
@@ -641,6 +844,8 @@ private fun DialogoCadastro(
     var expandLocal by remember { mutableStateOf(false) }
     val contexto = LocalContext.current
     val escopo = rememberCoroutineScope()
+    val interSalvar = remember { MutableInteractionSource() }
+    val interFoto = remember { MutableInteractionSource() }
 
     // Issue #1: TakePicture SEM permissão CAMERA — Uri FileProvider p/ o app de câmera.
     var fotoTemp: java.io.File? by remember { mutableStateOf(null) }
@@ -801,13 +1006,16 @@ private fun DialogoCadastro(
                     Button(
                         onClick = ::pedirFoto,
                         enabled = !tirandoFoto,
+                        interactionSource = interFoto,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant,
                             contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                         ),
-                        modifier = Modifier.semantics {
-                            onClick(label = "Tirar foto do item", action = null)
-                        }
+                        modifier = Modifier
+                            .escalaPress(interFoto, calmo)
+                            .semantics {
+                                onClick(label = "Tirar foto do item", action = null)
+                            }
                     ) {
                         Text(
                             if (tirandoFoto) "Processando…" else if (fotoPath != null) "Trocar foto" else "Tirar foto",
@@ -844,7 +1052,9 @@ private fun DialogoCadastro(
                     }
                     onSalvar(nome, qtd!!, unidade, validade, local, preco, fotoPath)
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = LimaNeon, contentColor = UvaNoite)
+                interactionSource = interSalvar,
+                colors = ButtonDefaults.buttonColors(containerColor = LimaNeon, contentColor = UvaNoite),
+                modifier = Modifier.escalaPress(interSalvar, calmo)
             ) { Text("Salvar", fontWeight = FontWeight.Bold) }
         },
         dismissButton = { TextButton(onClick = onFechar) { Text("Cancelar") } }

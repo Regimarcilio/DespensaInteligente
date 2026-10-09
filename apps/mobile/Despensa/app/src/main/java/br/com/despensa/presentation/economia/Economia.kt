@@ -3,9 +3,21 @@ package br.com.despensa.presentation.economia
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,12 +31,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,7 +45,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
@@ -48,6 +68,7 @@ import br.com.despensa.data.local.dao.EstoqueDao
 import br.com.despensa.domain.formatarReais
 import br.com.despensa.domain.inicioDoMes
 import br.com.despensa.domain.proporcaoConsumida
+import br.com.despensa.presentation.theme.Dur
 import br.com.despensa.presentation.theme.LimaEscura
 import br.com.despensa.presentation.theme.LimaNeon
 import br.com.despensa.presentation.theme.Pimenta
@@ -56,6 +77,9 @@ import br.com.despensa.presentation.theme.RoxoEletrico
 import br.com.despensa.presentation.theme.RoxoProfundo
 import br.com.despensa.presentation.theme.Tinta
 import br.com.despensa.presentation.theme.UvaNoite
+import br.com.despensa.presentation.theme.escalaPress
+import br.com.despensa.presentation.theme.lembrarMovimentoReduzido
+import br.com.despensa.presentation.theme.specCalma
 import br.com.despensa.share.BackupJson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -126,6 +150,38 @@ fun EconomiaScreen(vm: EconomiaViewModel = hiltViewModel()) {
     val contexto = LocalContext.current
     val escopo = rememberCoroutineScope()
     var statusBackup by remember { mutableStateOf<String?>(null) }
+    val calmo = lembrarMovimentoReduzido()
+
+    // E03 — count-up do hero: inteiros + centavos, mesma spec 800ms.
+    // Reduce-motion: valor final direto (sem count-up).
+    val alvoInt = salvos.toInt()
+    val num by animateIntAsState(
+        targetValue = alvoInt,
+        animationSpec = specCalma(tween(Dur.P800, easing = FastOutSlowInEasing), calmo),
+        label = "hero-count"
+    )
+    val centAlvo = (((salvos - alvoInt).coerceIn(0.0, 0.999)) * 100).toInt().coerceIn(0, 99)
+    val cent by animateFloatAsState(
+        targetValue = centAlvo.toFloat(),
+        animationSpec = specCalma(tween(Dur.P800, easing = FastOutSlowInEasing), calmo),
+        label = "hero-cent"
+    )
+    val exibido = if (calmo) salvos else num.toDouble() + (cent / 100.0)
+
+    // E03 — bump a cada mudança de valor: 1.0 → 1.06 → 1.0, spring(300, 0.55).
+    var bumpOn by remember { mutableStateOf(false) }
+    LaunchedEffect(salvos) {
+        if (!calmo) {
+            bumpOn = true
+            kotlinx.coroutines.delay(175)
+            bumpOn = false
+        }
+    }
+    val bump by animateFloatAsState(
+        targetValue = if (bumpOn && !calmo) 1.06f else 1f,
+        animationSpec = specCalma(spring(stiffness = 300f, dampingRatio = 0.55f), calmo),
+        label = "hero-bump"
+    )
 
     fun avisar(msg: String) {
         statusBackup = msg
@@ -176,6 +232,10 @@ fun EconomiaScreen(vm: EconomiaViewModel = hiltViewModel()) {
         }
     }
 
+    // E06 — press scale nos CTAs (interactionSource próprio por botão).
+    val interExport = remember { MutableInteractionSource() }
+    val interImport = remember { MutableInteractionSource() }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -188,16 +248,39 @@ fun EconomiaScreen(vm: EconomiaViewModel = hiltViewModel()) {
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        // HERO: valor salvo é o maior texto da tela, display extrabold com brilho lima
-        // (identidade, regra 4 — "Noite Neon na Cozinha").
-        Text(
-            "R$ ${formatarReais(salvos)}",
-            fontWeight = FontWeight.Black,
-            fontSize = 52.sp,
-            lineHeight = 56.sp,
-            color = corHero,
-            modifier = Modifier.shadow(12.dp, RoundedCornerShape(8.dp))
-        )
+        // E03 — HERO: valor salvo é o maior texto da tela, display extrabold
+        // com GLOW REAL (identidade, regra 4). Antes: Modifier.shadow(12dp)
+        // = sombra cinza espalhada, não luz. Agora: (a) texto com Shadow lima
+        // 55% blur 24 + (b) radial lima 22% (30% no light) raio 200dp atrás.
+        // Contenção: 1 glow fora de LazyColumn — permitido.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .drawBehind {
+                    drawCircle(
+                        Brush.radialGradient(
+                            listOf(
+                                corHero.copy(alpha = if (escuro) 0.22f else 0.30f),
+                                Color.Transparent
+                            )
+                        ),
+                        radius = 200.dp.toPx(),
+                        center = Offset(size.width * 0.5f, size.height * 0.5f)
+                    )
+                }
+        ) {
+            Text(
+                "R$ ${formatarReais(exibido)}",
+                fontWeight = FontWeight.Black,
+                fontSize = 52.sp,
+                lineHeight = 56.sp,
+                color = corHero,
+                style = LocalTextStyle.current.copy(
+                    shadow = Shadow(corHero.copy(alpha = 0.55f), blurRadius = 24f)
+                ),
+                modifier = Modifier.graphicsLayer(scaleX = bump, scaleY = bump)
+            )
+        }
         Text(
             "R$ ${formatarReais(perdidos)} perdidos",
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
@@ -210,14 +293,16 @@ fun EconomiaScreen(vm: EconomiaViewModel = hiltViewModel()) {
                 valor = salvos,
                 cor = corHero,
                 corTitulo = corTituloCard,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                calmo = calmo
             )
             EconomiaCard(
                 titulo = "DESCARTADO",
                 valor = perdidos,
                 cor = corPerda,
                 corTitulo = corTituloCard,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                calmo = calmo
             )
         }
         Spacer(Modifier.height(16.dp))
@@ -226,25 +311,33 @@ fun EconomiaScreen(vm: EconomiaViewModel = hiltViewModel()) {
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
         )
         Spacer(Modifier.height(8.dp))
-        // Barra simples consumido×descartado (sem lib nova): lima = consumido, trilho = perdido.
-        LinearProgressIndicator(
-            progress = { proporcao },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(14.dp)
-                .semantics {
-                    contentDescription = "$pctConsumido por cento consumido no mês"
-                },
-            color = corHero,
-            trackColor = corPerda
+        // E09 — barra custom com física + marco (troca o LinearProgressIndicator cru).
+        BarraConsumo(
+            proporcao = proporcao,
+            corHero = corHero,
+            corPerda = corPerda,
+            escuro = escuro,
+            calmo = calmo,
+            modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.height(4.dp))
-        Text(
-            if (salvos + perdidos <= 0) "Nada lançado este mês — dê baixa nos itens do estoque."
+        // E09 — label com AnimatedContent 300ms; empty mantém texto atual.
+        AnimatedContent(
+            targetState = if (salvos + perdidos <= 0) "empty"
             else "$pctConsumido% consumido · ${100 - pctConsumido}% descartado",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+            transitionSpec = {
+                androidx.compose.animation.fadeIn(specCalma(tween(Dur.P300), calmo)) togetherWith
+                    androidx.compose.animation.fadeOut(specCalma(tween(Dur.P300), calmo))
+            },
+            label = "pct-consumido"
+        ) { rotulo ->
+            Text(
+                if (rotulo == "empty") "Nada lançado este mês — dê baixa nos itens do estoque."
+                else rotulo,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         // Issue #2: seção Backup (export/import via SAF, padrão ListaCompras).
         Spacer(Modifier.height(24.dp))
         Text(
@@ -264,14 +357,18 @@ fun EconomiaScreen(vm: EconomiaViewModel = hiltViewModel()) {
                     exportarDoc.launch("backup-despensa-$iso.json")
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = LimaNeon, contentColor = UvaNoite),
+                interactionSource = interExport,
                 modifier = Modifier
                     .weight(1f)
+                    .escalaPress(interExport, calmo)
                     .semantics { onClick(label = "Exportar backup em JSON", action = null) }
             ) { Text("Exportar", fontWeight = FontWeight.Bold) }
             OutlinedButton(
                 onClick = { importarDoc.launch(arrayOf("application/json")) },
+                interactionSource = interImport,
                 modifier = Modifier
                     .weight(1f)
+                    .escalaPress(interImport, calmo)
                     .semantics { onClick(label = "Importar backup em JSON", action = null) }
             ) { Text("Importar", fontWeight = FontWeight.Bold) }
         }
@@ -287,31 +384,134 @@ fun EconomiaScreen(vm: EconomiaViewModel = hiltViewModel()) {
     }
 }
 
+/**
+ * E09 — barra Consumido × Descartado com física + marco.
+ * Altura 14dp, trilho corPerda, preenchimento corHero (animate 600ms),
+ * cantos 7dp, separador 2dp Creme/UvaNoite na junção + knob 10dp LimaNeon
+ * com glow 40% parado sobre a junção. Desenho em Canvas (sem Modifier.blur,
+ * sem shadow por frame). Com total zerado, knob repousa à esquerda.
+ */
+@Composable
+private fun BarraConsumo(
+    proporcao: Float,
+    corHero: Color,
+    corPerda: Color,
+    escuro: Boolean,
+    calmo: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val anim by animateFloatAsState(
+        targetValue = proporcao.coerceIn(0f, 1f),
+        animationSpec = specCalma(tween(Dur.P600, easing = FastOutSlowInEasing), calmo),
+        label = "barra-consumo"
+    )
+    val pct = (anim * 100).toInt()
+    val separador = if (escuro) UvaNoite else Color(0xFFFFF6E9)
+    Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(14.dp)
+            .semantics { contentDescription = "$pct por cento consumido no mês" }
+    ) {
+        val w = size.width
+        val h = size.height
+        val raio = 7.dp.toPx()
+        drawRoundRect(
+            color = corPerda,
+            cornerRadius = CornerRadius(raio, raio),
+            size = Size(w, h)
+        )
+        val larg = (w * anim).coerceIn(0f, w)
+        if (larg > 1f) {
+            drawRoundRect(
+                color = corHero,
+                topLeft = Offset.Zero,
+                size = Size(larg, h),
+                cornerRadius = CornerRadius(raio, raio)
+            )
+        }
+        if (anim > 0.02f && anim < 0.98f) {
+            val x = w * anim
+            drawRect(
+                color = separador,
+                topLeft = Offset(x - 1.dp.toPx(), 0f),
+                size = Size(2.dp.toPx(), h)
+            )
+            // Knob LimaNeon 10dp + halo 40% (círculos sólidos — sem blur).
+            drawCircle(
+                color = LimaNeon.copy(alpha = 0.4f),
+                radius = (10.dp.toPx() / 2) + 8.dp.toPx() / 2,
+                center = Offset(x, h / 2)
+            )
+            drawCircle(color = LimaNeon, radius = 10.dp.toPx() / 2, center = Offset(x, h / 2))
+        } else if (anim <= 0.02f) {
+            // Marca d'água "0": knob repousa à esquerda (empty mantém texto).
+            drawCircle(
+                color = LimaNeon.copy(alpha = 0.4f),
+                radius = (10.dp.toPx() / 2) + 8.dp.toPx() / 2,
+                center = Offset(10.dp.toPx() / 2 + 2.dp.toPx(), h / 2)
+            )
+            drawCircle(
+                color = LimaNeon,
+                radius = 10.dp.toPx() / 2,
+                center = Offset(10.dp.toPx() / 2 + 2.dp.toPx(), h / 2)
+            )
+        }
+    }
+}
+
 @Composable
 private fun EconomiaCard(
     titulo: String,
     valor: Double,
     cor: androidx.compose.ui.graphics.Color,
     corTitulo: androidx.compose.ui.graphics.Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    calmo: Boolean = false
 ) {
-    OutlinedCard(
-        modifier = modifier,
-        shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(2.dp, Tinta.copy(alpha = 0.9f)),
-        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(Modifier.padding(12.dp)) {
-            Text(
-                titulo,
-                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Black),
-                color = corTitulo
-            )
-            Text(
-                "R$ ${formatarReais(valor)}",
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black),
-                color = cor
-            )
+    // E05 — sombra dura deslocada 4dp (sólida, sem blur) + expansão com
+    // spring(300, 0.7). Fora de LazyColumn: 1 glow aqui seria ok, mas o card
+    // usa sombra dura (contenção: shadow() com blur só no hero/FAB).
+    Box(modifier = modifier) {
+        Box(
+            Modifier
+                .matchParentSize()
+                .padding(start = 4.dp, top = 4.dp)
+                .drawBehind {
+                    drawRoundRect(
+                        color = Tinta,
+                        cornerRadius = CornerRadius(18.dp.toPx(), 18.dp.toPx())
+                    )
+                }
+        )
+        OutlinedCard(
+            modifier = Modifier
+                .fillMaxWidth()
+                .animateContentSize(
+                    animationSpec = specCalma(
+                        spring(
+                            stiffness = 300f,
+                            dampingRatio = 0.7f
+                        ),
+                        calmo
+                    )
+                ),
+            shape = RoundedCornerShape(18.dp),
+            border = BorderStroke(2.dp, Tinta.copy(alpha = 0.9f)),
+            colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(Modifier.padding(12.dp)) {
+                Text(
+                    titulo,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Black),
+                    color = corTitulo
+                )
+                Text(
+                    "R$ ${formatarReais(valor)}",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black),
+                    color = cor
+                )
+            }
         }
     }
 }
