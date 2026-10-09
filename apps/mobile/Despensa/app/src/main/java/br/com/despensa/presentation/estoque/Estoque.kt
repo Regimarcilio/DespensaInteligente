@@ -26,7 +26,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -123,14 +122,14 @@ import br.com.despensa.domain.valorTotalBaixa
 import br.com.despensa.presentation.theme.Nevoa
 import br.com.despensa.presentation.theme.BordaNoiteAzul
 import br.com.despensa.presentation.theme.PetroleoSec
-import br.com.despensa.presentation.theme.AzulCinza
-import br.com.despensa.presentation.theme.CestoAzul
+import br.com.despensa.presentation.theme.MutedEcom
+import br.com.despensa.presentation.theme.CartaoEcom
 import br.com.despensa.presentation.theme.Dur
 import br.com.despensa.presentation.theme.EsqueletoCard
 import br.com.despensa.presentation.theme.LinhaAzul
-import br.com.despensa.presentation.theme.Papel
+import br.com.despensa.presentation.theme.NeveEcom
 import br.com.despensa.presentation.theme.VermelhoQueimado
-import br.com.despensa.presentation.theme.LaranjaViva
+import br.com.despensa.presentation.theme.LaranjaEcom
 import br.com.despensa.presentation.theme.TurquesaProfunda
 import br.com.despensa.presentation.theme.atrasoStagger
 import br.com.despensa.presentation.theme.corAnelFrescor
@@ -294,7 +293,7 @@ private fun rotuloStatus(s: StatusValidade): String = when (s) {
 }
 
 @Composable
-fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
+fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel(), escuro: Boolean = false) {
     val itens by vm.itens.collectAsState()
     val busca by vm.buscaAtual.collectAsState()
     val filtro by vm.filtroAtual.collectAsState()
@@ -302,7 +301,6 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
     val snackbar = remember { SnackbarHostState() }
     val escopo = rememberCoroutineScope()
     val calmo = lembrarMovimentoReduzido()
-    val escuro = isSystemInDarkTheme()
 
     // E08 — janela de primeira coleta (WhileSubscribed): skeleton com shimmer
     // em vez do "Estoque vazio…" enquanto o banco popula. Sem mudar fluxos:
@@ -355,7 +353,7 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
                     interactionSource = interFab,
                     icon = { Icon(Icons.Filled.Add, contentDescription = null) },
                     text = { Text("Adicionar", fontWeight = FontWeight.Bold) },
-                    containerColor = LaranjaViva,
+                    containerColor = LaranjaEcom,
                     contentColor = MaterialTheme.colorScheme.onSecondary
                 )
             }
@@ -392,7 +390,7 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
                     // E06 — FilterChip pílula com press scale (interactionSource próprio).
                     val interChip = remember(rotulo) { MutableInteractionSource() }
                     val sel = filtro == local
-                    val chipFundo = if (escuro) CestoAzul else Papel
+                    val chipFundo = if (escuro) CartaoEcom else NeveEcom
                     val chipBorda = if (escuro) BordaNoiteAzul else LinhaAzul
                     FilterChip(
                         selected = sel,
@@ -401,7 +399,7 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
                             Text(
                                 rotulo,
                                 maxLines = 1,
-                                color = if (sel) Color.White else if (escuro) AzulCinza else PetroleoSec
+                                color = if (sel) Color.White else if (escuro) MutedEcom else PetroleoSec
                             )
                         },
                         interactionSource = interChip,
@@ -429,7 +427,7 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
                 // E08 — 3 fantasmas com shimmer (estáticos com calmo).
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     repeat(3) {
-                        EsqueletoCard(calmo = calmo, descricao = "Carregando estoque")
+                        EsqueletoCard(calmo = calmo, escuro = escuro, descricao = "Carregando estoque")
                     }
                 }
             } else if (itens.isEmpty()) {
@@ -483,7 +481,8 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
                                     onConsumir = { vm.darBaixa(item, MotivoBaixa.CONSUMIDO, ::avisar) },
                                     onDescartar = { vm.darBaixa(item, MotivoBaixa.DESCARTADO, ::avisar) },
                                     onRemover = { vm.remover(item.id) },
-                                    calmo = calmo
+                                    calmo = calmo,
+                                    escuro = escuro
                                 )
                             }
                         }
@@ -501,7 +500,8 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel()) {
                 vm.salvar(nome, qtd, un, val_, local, preco, foto)
                 dialogoAberto = false
             },
-            calmo = calmo
+            calmo = calmo,
+            escuro = escuro
         )
     }
 }
@@ -585,12 +585,12 @@ private fun EstoqueCard(
     onConsumir: () -> Unit,
     onDescartar: () -> Unit,
     onRemover: () -> Unit,
-    calmo: Boolean = false
+    calmo: Boolean = false,
+    escuro: Boolean = false
 ) {
     val agora = System.currentTimeMillis()
     val status = statusValidade(item.validade, agora)
     val dias = diasParaVencer(item.validade, agora)
-    val escuro = isSystemInDarkTheme()
     val corSelo = corFundoSelo(status, escuro)
     val tintaSelo = corTextoSelo(status, escuro)
     val anel = corAnelFrescor(status, escuro)
@@ -640,6 +640,7 @@ private fun EstoqueCard(
                 anel = anel,
                 interThumb = interThumb,
                 calmo = calmo,
+                escuro = escuro,
                 onAmpliar = { ampliada = true }
             )
             Spacer(Modifier.width(8.dp))
@@ -724,11 +725,11 @@ private fun EstoqueCard(
         val grande = remember(item.fotoPath) {
             FotoStore.decodificarAmostrado(item.fotoPath!!, 1024)
         }
-        val escuroDialogo = isSystemInDarkTheme()
+        val escuroDialogo = escuro
         AlertDialog(
             onDismissRequest = { ampliada = false },
             shape = RoundedCornerShape(28.dp),
-            containerColor = if (escuroDialogo) CestoAzul else Papel,
+            containerColor = if (escuroDialogo) CartaoEcom else NeveEcom,
             title = { Text(item.nome, style = MaterialTheme.typography.titleLarge) },
             text = {
                 if (grande != null) {
@@ -764,15 +765,16 @@ private fun ThumbFeira(
     anel: Color,
     interThumb: MutableInteractionSource,
     calmo: Boolean,
+    escuro: Boolean = false,
     onAmpliar: () -> Unit
 ) {
     val moldura = Modifier
         .size(64.dp)
         .border(3.dp, anel, CircleShape)
         .clip(CircleShape)
-    val escuroThumb = isSystemInDarkTheme()
-    val fundoVazio = if (escuroThumb) CestoAzul else Nevoa
-    val tintaVazia = if (escuroThumb) AzulCinza else PetroleoSec
+    val escuroThumb = escuro
+    val fundoVazio = if (escuroThumb) CartaoEcom else Nevoa
+    val tintaVazia = if (escuroThumb) MutedEcom else PetroleoSec
     if (temFoto) {
         val bitmap = remember(fotoPath) {
             FotoStore.decodificarAmostrado(fotoPath!!)
@@ -825,7 +827,8 @@ private fun formatarQtd(qtd: Double): String =
 private fun DialogoCadastro(
     onFechar: () -> Unit,
     onSalvar: (nome: String, qtd: Double, unidade: String, validade: Long?, local: LocalEstoque, precoRef: Double?, fotoPath: String?) -> Unit,
-    calmo: Boolean = false
+    calmo: Boolean = false,
+    escuro: Boolean = false
 ) {
     var nome by remember { mutableStateOf("") }
     var qtdTxt by remember { mutableStateOf("1") }
@@ -842,7 +845,6 @@ private fun DialogoCadastro(
     val escopo = rememberCoroutineScope()
     val interSalvar = remember { MutableInteractionSource() }
     val interFoto = remember { MutableInteractionSource() }
-    val escuro = isSystemInDarkTheme()
     val campo16 = RoundedCornerShape(16.dp)
 
     // Issue #1: TakePicture SEM permissão CAMERA — Uri FileProvider p/ o app de câmera.
@@ -881,7 +883,7 @@ private fun DialogoCadastro(
     AlertDialog(
         onDismissRequest = onFechar,
         shape = RoundedCornerShape(28.dp),
-        containerColor = if (escuro) CestoAzul else Papel,
+        containerColor = if (escuro) CartaoEcom else NeveEcom,
         title = { Text("Novo item", style = MaterialTheme.typography.titleLarge) },
         text = {
             Column {
@@ -1061,7 +1063,7 @@ private fun DialogoCadastro(
                 },
                 interactionSource = interSalvar,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = LaranjaViva,
+                    containerColor = LaranjaEcom,
                     contentColor = MaterialTheme.colorScheme.onSecondary
                 ),
                 modifier = Modifier.escalaPress(interSalvar, calmo)

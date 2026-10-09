@@ -5,43 +5,66 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Contrast
 import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import br.com.despensa.data.local.prefs.ModoTema
+import br.com.despensa.data.local.prefs.TemaPrefs
 import br.com.despensa.presentation.economia.EconomiaScreen
 import br.com.despensa.presentation.economia.EconomiaViewModel
 import br.com.despensa.presentation.estoque.EstoqueScreen
@@ -51,11 +74,15 @@ import br.com.despensa.presentation.lista.ListaViewModel
 import br.com.despensa.presentation.notif.PedidoPermissaoNotificacao
 import br.com.despensa.presentation.theme.DespensaTheme
 import br.com.despensa.presentation.theme.Dur
+import br.com.despensa.presentation.theme.LaranjaEcom
+import br.com.despensa.presentation.theme.MentaEcom
 import br.com.despensa.presentation.theme.TurquesaProfunda
-import br.com.despensa.presentation.theme.TurquesaClara
 import br.com.despensa.presentation.theme.fundoFeira
 import br.com.despensa.presentation.theme.lembrarMovimentoReduzido
+import br.com.despensa.presentation.theme.specCalma
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
+import kotlinx.coroutines.launch
 
 private enum class Aba(val rotulo: String, val icone: androidx.compose.ui.graphics.vector.ImageVector) {
     ESTOQUE("Estoque", Icons.Filled.Inventory),
@@ -66,21 +93,34 @@ private enum class Aba(val rotulo: String, val icone: androidx.compose.ui.graphi
 @OptIn(ExperimentalMaterial3Api::class)
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @Inject
+    lateinit var temaPrefs: TemaPrefs
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            // Sprint 3: claro+escuro segue o sistema (US10 full com TalkBack vem na S4).
-            val escuro = isSystemInDarkTheme()
+            // Paleta v4 §b: modo de tema como OPÇÃO (DataStore "modo_tema",
+            // default SISTEMA = comportamento pré-v4). Único isSystemInDarkTheme()
+            // do app — telas recebem `escuro` por parâmetro.
+            val modo by temaPrefs.modoTema.collectAsState(initial = ModoTema.SISTEMA)
+            val doSistema = isSystemInDarkTheme()
+            val escuro = when (modo) {
+                ModoTema.SISTEMA -> doSistema
+                ModoTema.CLARO -> false
+                ModoTema.ESCURO -> true
+            }
             DespensaTheme(escuro = escuro) {
                 // Sprint 2 (RF-002): rationale próprio + pedido do sistema na 1ª abertura.
                 PedidoPermissaoNotificacao()
                 var aba by rememberSaveable { mutableStateOf(Aba.ESTOQUE) }
+                var mostrarDialogoTema by rememberSaveable { mutableStateOf(false) }
                 val vmEstoque: EstoqueViewModel = hiltViewModel()
                 val itens by vmEstoque.itens.collectAsState()
                 val calmo = lembrarMovimentoReduzido()
+                val escopo = rememberCoroutineScope()
 
-                // §(e) — header SÓLIDO maré: light BrancoMaré, dark AzulNoite +
+                // §(e) — header SÓLIDO maré: light BrancoMaré, dark NoiteEcom +
                 // Divider 1dp. Título Fraunces Bold (typography.titleLarge),
                 // sem glow. Subtítulo mantém AnimatedContent 200ms.
                 val tituloAba = when (aba) {
@@ -94,7 +134,12 @@ class MainActivity : ComponentActivity() {
                     Aba.LISTA -> "Exporte para o ListaCompras"
                     Aba.ECONOMIA -> "Salvos vs perdidos no mês"
                 }
-                val verdeNav = if (escuro) TurquesaClara else TurquesaProfunda
+                val verdeNav = if (escuro) MentaEcom else TurquesaProfunda
+                val rotuloTema = when (modo) {
+                    ModoTema.SISTEMA -> "Sistema"
+                    ModoTema.CLARO -> "Claro"
+                    ModoTema.ESCURO -> "Escuro"
+                }
 
                 Scaffold(
                     topBar = {
@@ -121,6 +166,34 @@ class MainActivity : ComponentActivity() {
                                                 sub,
                                                 style = MaterialTheme.typography.labelMedium,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                },
+                                // §b.2 — ação de tema à direita do título.
+                                actions = {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        IconButton(
+                                            onClick = { mostrarDialogoTema = true },
+                                            modifier = Modifier.semantics {
+                                                contentDescription =
+                                                    "Tema: $rotuloTema. Toque para mudar"
+                                            }
+                                        ) {
+                                            Icon(
+                                                Icons.Filled.Contrast,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.onBackground
+                                            )
+                                        }
+                                        // Dot indica override ativo (modo ≠ Sistema).
+                                        if (modo != ModoTema.SISTEMA) {
+                                            Box(
+                                                Modifier
+                                                    .align(Alignment.TopEnd)
+                                                    .padding(top = 10.dp, end = 10.dp)
+                                                    .size(8.dp)
+                                                    .background(LaranjaEcom, CircleShape)
                                             )
                                         }
                                     }
@@ -188,20 +261,112 @@ class MainActivity : ComponentActivity() {
                             label = "troca-aba"
                         ) { abaAtual ->
                             when (abaAtual) {
-                                Aba.ESTOQUE -> EstoqueScreen(vmEstoque)
+                                Aba.ESTOQUE -> EstoqueScreen(vmEstoque, escuro = escuro)
                                 Aba.LISTA -> {
                                     val vmLista: ListaViewModel = hiltViewModel()
-                                    ListaScreen(vmLista)
+                                    ListaScreen(vmLista, escuro = escuro)
                                 }
                                 Aba.ECONOMIA -> {
                                     val vmEco: EconomiaViewModel = hiltViewModel()
-                                    EconomiaScreen(vmEco)
+                                    EconomiaScreen(vmEco, escuro = escuro)
                                 }
                             }
                         }
                     }
                 }
+
+                // §b.2 — diálogo radio Sistema/Claro/Escuro (28dp, container surface).
+                if (mostrarDialogoTema) {
+                    DialogoTema(
+                        modoAtual = modo,
+                        calmo = calmo,
+                        onEscolher = { escolhido ->
+                            escopo.launch {
+                                temaPrefs.definir(escolhido)
+                                mostrarDialogoTema = false
+                            }
+                        },
+                        onFechar = { mostrarDialogoTema = false }
+                    )
+                }
             }
         }
     }
+}
+
+/**
+ * Seletor de tema (§07-paleta-v4 b.2): AlertDialog 28dp, 3 linhas RadioButton +
+ * texto. Toque seleciona e fecha (sem OK); "Cancelar" ghost fecha sem mudar.
+ * Título segue titleMedium Inter Bold da forma atual (forma congelada).
+ */
+@Composable
+private fun DialogoTema(
+    modoAtual: ModoTema,
+    calmo: Boolean,
+    onEscolher: (ModoTema) -> Unit,
+    onFechar: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onFechar,
+        shape = RoundedCornerShape(28.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = {
+            Text("Tema", style = MaterialTheme.typography.titleMedium)
+        },
+        text = {
+            Column {
+                ModoTema.values().forEach { opcao ->
+                    val selecionado = opcao == modoAtual
+                    // Seleção com animateColorAsState 250ms (forma congelada).
+                    val corTexto by animateColorAsState(
+                        targetValue = if (selecionado) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurface,
+                        animationSpec = specCalma(tween(Dur.P250), calmo),
+                        label = "tema-cor-${opcao.name}"
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(
+                                onClickLabel = "Usar tema ${opcao.rotulo.lowercase()}"
+                            ) { onEscolher(opcao) }
+                            .semantics(mergeDescendants = true) {
+                                stateDescription =
+                                    if (selecionado) "Selecionado" else "Não selecionado"
+                            }
+                            .padding(vertical = 4.dp)
+                    ) {
+                        RadioButton(
+                            selected = selecionado,
+                            onClick = null
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                opcao.rotulo,
+                                style = MaterialTheme.typography.bodyLarge
+                                    .copy(fontWeight = FontWeight.Bold),
+                                color = corTexto
+                            )
+                            Text(
+                                opcao.descricao,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(
+                onClick = onFechar,
+                modifier = Modifier.semantics {
+                    contentDescription = "Cancelar, manter tema atual"
+                }
+            ) { Text("Cancelar") }
+        }
+    )
 }

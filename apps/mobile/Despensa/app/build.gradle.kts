@@ -57,6 +57,7 @@ dependencies {
     implementation(libs.coroutines.core)
     implementation(libs.serialization.json)
     implementation(libs.work.runtime)
+    implementation(libs.datastore.preferences)
     ksp(libs.room.compiler)
     ksp(libs.hilt.compiler)
     testImplementation(libs.junit5.api)

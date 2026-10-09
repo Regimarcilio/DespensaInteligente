@@ -14,7 +14,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -62,14 +61,13 @@ import br.com.despensa.domain.formatarReais
 import br.com.despensa.domain.inicioDoMes
 import br.com.despensa.domain.proporcaoConsumida
 import br.com.despensa.presentation.theme.Nevoa
-import br.com.despensa.presentation.theme.CestoAzul
+import br.com.despensa.presentation.theme.CartaoEcom
 import br.com.despensa.presentation.theme.Dur
 import br.com.despensa.presentation.theme.VermelhoNoite
 import br.com.despensa.presentation.theme.VermelhoQueimado
-import br.com.despensa.presentation.theme.LaranjaViva
-import br.com.despensa.presentation.theme.LaranjaClara
+import br.com.despensa.presentation.theme.LaranjaEcom
 import br.com.despensa.presentation.theme.TurquesaProfunda
-import br.com.despensa.presentation.theme.TurquesaClara
+import br.com.despensa.presentation.theme.MentaEcom
 import br.com.despensa.presentation.theme.escalaPress
 import br.com.despensa.presentation.theme.lembrarMovimentoReduzido
 import br.com.despensa.presentation.theme.sombraFeira
@@ -130,20 +128,19 @@ class EconomiaViewModel @Inject constructor(
 }
 
 @Composable
-fun EconomiaScreen(vm: EconomiaViewModel = hiltViewModel()) {
+fun EconomiaScreen(vm: EconomiaViewModel = hiltViewModel(), escuro: Boolean = false) {
     val salvos by vm.salvos.collectAsState()
     val perdidos by vm.perdidos.collectAsState()
     val proporcao = proporcaoConsumida(salvos, perdidos)
     val pctConsumido = (proporcao * 100).toInt()
-    val escuro = isSystemInDarkTheme()
-    // Maré (§07-paleta-v3): hero turquesa, perda vermelho-queimado — sem neon.
-    // CTA LaranjaViva/LaranjaClara SEMPRE fill grande com onSecondary = TintaMaré/AzulNoite
-    // (branco 2,80 ❌ proibido); laranja nunca como texto pequeno.
-    val corHero = if (escuro) TurquesaClara else TurquesaProfunda
+    // Maré v4 (§07-paleta-v4): hero turquesa/menta, perda vermelho-queimado — sem neon.
+    // CTA LaranjaEcom SEMPRE fill grande com onSecondary = TintaMaré/NoiteEcom
+    // (branco 2,36 ❌ proibido); laranja nunca como texto pequeno.
+    val corHero = if (escuro) MentaEcom else TurquesaProfunda
     val corPerda = if (escuro) VermelhoNoite else VermelhoQueimado
-    val corTrilho = if (escuro) CestoAzul else Nevoa
-    val corKnob = if (escuro) LaranjaClara else LaranjaViva
-    val corCta = if (escuro) LaranjaClara else LaranjaViva
+    val corTrilho = if (escuro) CartaoEcom else Nevoa
+    val corKnob = LaranjaEcom
+    val corCta = LaranjaEcom
     val contexto = LocalContext.current
     val escopo = rememberCoroutineScope()
     var statusBackup by remember { mutableStateOf<String?>(null) }
@@ -246,7 +243,7 @@ fun EconomiaScreen(vm: EconomiaViewModel = hiltViewModel()) {
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         // E03 — HERO maré: preço de banca escrito à mão — Fraunces Bold 52/56
-        // em TurquesaProfunda/TurquesaClara + count-up + bump. Sem glow, sem radial.
+        // em TurquesaProfunda/MentaEcom + count-up + bump. Sem glow, sem radial.
         Text(
             "R$ ${formatarReais(exibido)}",
             style = MaterialTheme.typography.displayLarge,
@@ -265,14 +262,16 @@ fun EconomiaScreen(vm: EconomiaViewModel = hiltViewModel()) {
                 valor = salvos,
                 cor = corHero,
                 modifier = Modifier.weight(1f),
-                calmo = calmo
+                calmo = calmo,
+                escuro = escuro
             )
             EconomiaCard(
                 titulo = "DESCARTADO",
                 valor = perdidos,
                 cor = corPerda,
                 modifier = Modifier.weight(1f),
-                calmo = calmo
+                calmo = calmo,
+                escuro = escuro
             )
         }
         Spacer(Modifier.height(16.dp))
@@ -359,9 +358,9 @@ fun EconomiaScreen(vm: EconomiaViewModel = hiltViewModel()) {
 }
 
 /**
- * E09 — barra Consumido × Descartado maré (§07-paleta-v3): altura 16dp, trilho neutro
- * (Nevoa/CestoAzul), preenchimento TurquesaProfunda/TurquesaClara (animate 600ms), cantos 8dp,
- * knob LaranjaViva/LaranjaClara 12dp sólido sem halo. A perda vira número ("R$ perdidos"),
+ * E09 — barra Consumido × Descartado maré (§07-paleta-v4): altura 16dp, trilho neutro
+ * (Nevoa/CartaoEcom), preenchimento TurquesaProfunda/MentaEcom (animate 600ms), cantos 8dp,
+ * knob LaranjaEcom 12dp sólido sem halo. A perda vira número ("R$ perdidos"),
  * não cor de trilho — menos alarmista. Com total zerado, knob à esquerda.
  */
 @Composable
@@ -413,11 +412,11 @@ private fun EconomiaCard(
     valor: Double,
     cor: androidx.compose.ui.graphics.Color,
     modifier: Modifier = Modifier,
-    calmo: Boolean = false
+    calmo: Boolean = false,
+    escuro: Boolean = false
 ) {
     // E05 — card 24dp, borda 1dp outline, sombra suave quente + expansão com
     // spring(300, 0.7). Título e valor na mesma cor (turquesa ou vermelho-queimado).
-    val escuro = isSystemInDarkTheme()
     OutlinedCard(
         modifier = modifier
             .sombraFeira(escuro, RoundedCornerShape(24.dp))

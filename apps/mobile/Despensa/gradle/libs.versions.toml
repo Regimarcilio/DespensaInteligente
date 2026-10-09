@@ -8,6 +8,7 @@ room = "2.6.1"
 coroutines = "1.8.1"
 serialization = "1.7.3"
 work = "2.9.0"
+datastore = "1.1.1"
 junit5 = "5.10.3"
 hilt-navigation-compose = "1.2.0"
 
@@ -32,6 +33,7 @@ hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hil
 coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
+datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
 junit5-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit5" }
 
 [plugins]

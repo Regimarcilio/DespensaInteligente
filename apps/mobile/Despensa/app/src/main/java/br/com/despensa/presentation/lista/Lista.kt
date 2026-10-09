@@ -18,7 +18,6 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -74,15 +73,14 @@ import br.com.despensa.domain.formatarReais
 import br.com.despensa.domain.gerarTexto
 import br.com.despensa.presentation.theme.Dur
 import br.com.despensa.presentation.theme.EsqueletoCard
-import br.com.despensa.presentation.theme.AmbarFeira
-import br.com.despensa.presentation.theme.AmbarClaro
+import br.com.despensa.presentation.theme.AmbarEcom
 import br.com.despensa.presentation.theme.TintaMare
-import br.com.despensa.presentation.theme.LaranjaViva
+import br.com.despensa.presentation.theme.LaranjaEcom
 import br.com.despensa.presentation.theme.TurquesaProfunda
-import br.com.despensa.presentation.theme.TurquesaClara
+import br.com.despensa.presentation.theme.MentaEcom
 import br.com.despensa.presentation.theme.NevoaTurquesa
-import br.com.despensa.presentation.theme.CestoAzul
-import br.com.despensa.presentation.theme.AzulNoite
+import br.com.despensa.presentation.theme.CartaoEcom
+import br.com.despensa.presentation.theme.NoiteEcom
 import br.com.despensa.presentation.theme.atrasoStagger
 import br.com.despensa.presentation.theme.escalaPress
 import br.com.despensa.presentation.theme.lembrarMovimentoReduzido
@@ -200,7 +198,7 @@ private fun formatarQtd(qtd: Double): String =
     if (qtd % 1.0 == 0.0) qtd.toInt().toString() else qtd.toString()
 
 @Composable
-fun ListaScreen(vm: ListaViewModel = hiltViewModel()) {
+fun ListaScreen(vm: ListaViewModel = hiltViewModel(), escuro: Boolean = false) {
     val sugestoes by vm.sugestoes.collectAsState()
     val texto by vm.texto.collectAsState()
     val contexto = LocalContext.current
@@ -250,7 +248,7 @@ fun ListaScreen(vm: ListaViewModel = hiltViewModel()) {
             }
             if (mostrandoSkeleton) {
                 items(3) {
-                    EsqueletoCard(calmo = calmo, descricao = "Carregando sugestões")
+                    EsqueletoCard(calmo = calmo, escuro = escuro, descricao = "Carregando sugestões")
                 }
             } else if (sugestoes.isEmpty()) {
                 item {
@@ -293,7 +291,8 @@ fun ListaScreen(vm: ListaViewModel = hiltViewModel()) {
                             onAlternar = { vm.alternar(s.nome) },
                             onMais = { vm.ajustarQtd(s.nome, passo(s.unidade)) },
                             onMenos = { vm.ajustarQtd(s.nome, -passo(s.unidade)) },
-                            calmo = calmo
+                            calmo = calmo,
+                            escuro = escuro
                         )
                     }
                     LaunchedEffect(s.nome) { vistos[s.nome] = true }
@@ -301,10 +300,10 @@ fun ListaScreen(vm: ListaViewModel = hiltViewModel()) {
             }
             item {
                 Spacer(Modifier.height(4.dp))
-                // CTA único da tela, sempre LaranjaViva (maré, regra 3).
-                // Texto sobre ele SEMPRE onSecondary = TintaMaré/AzulNoite (4,72/9,96 ✅);
-                // branco sobre laranja (2,80 ❌) proibido. Laranja nunca como texto pequeno.
-                // Disabled = LaranjaViva 30% + texto-guia ("Selecione itens ↑"), não só cor.
+                // CTA único da tela, sempre LaranjaEcom (maré, regra 3).
+                // Texto sobre ele SEMPRE onSecondary = TintaMaré/NoiteEcom (5,60/8,15 ✅);
+                // branco sobre laranja (2,36 ❌) proibido. Laranja nunca como texto pequeno.
+                // Disabled = LaranjaEcom 30% + texto-guia ("Selecione itens ↑"), não só cor.
                 Button(
                     onClick = { vm.gerarTextoReposicao() },
                     enabled = selecionadas > 0,
@@ -313,9 +312,9 @@ fun ListaScreen(vm: ListaViewModel = hiltViewModel()) {
                         .fillMaxWidth()
                         .escalaPress(interCta, calmo),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = LaranjaViva,
+                        containerColor = LaranjaEcom,
                         contentColor = MaterialTheme.colorScheme.onSecondary,
-                        disabledContainerColor = LaranjaViva.copy(alpha = 0.3f),
+                        disabledContainerColor = LaranjaEcom.copy(alpha = 0.3f),
                         disabledContentColor = MaterialTheme.colorScheme.onSecondary.copy(alpha = 0.6f)
                     )
                 ) {
@@ -350,7 +349,7 @@ fun ListaScreen(vm: ListaViewModel = hiltViewModel()) {
                         OutlinedCard(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .sombraFeira(isSystemInDarkTheme(), RoundedCornerShape(24.dp)),
+                                .sombraFeira(escuro, RoundedCornerShape(24.dp)),
                             shape = RoundedCornerShape(24.dp),
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                             colors = CardDefaults.outlinedCardColors(
@@ -404,12 +403,12 @@ private fun SugestaoCard(
     onAlternar: () -> Unit,
     onMais: () -> Unit,
     onMenos: () -> Unit,
-    calmo: Boolean = false
+    calmo: Boolean = false,
+    escuro: Boolean = false
 ) {
-    val escuro = isSystemInDarkTheme()
-    // E05 — marcado ACENDE: borda TurquesaProfunda 1.5dp + fundo NevoaTurquesa/CestoAzul
+    // E05 — marcado ACENDE: borda TurquesaProfunda 1.5dp + fundo NevoaTurquesa/CartaoEcom
     // (animateColor 200ms) + sombra suave quente. Não-marcado: outline 1dp.
-    val verdeMarcado = if (escuro) TurquesaClara else TurquesaProfunda
+    val verdeMarcado = if (escuro) MentaEcom else TurquesaProfunda
     val corBorda by androidx.compose.animation.animateColorAsState(
         targetValue = if (sugestao.marcada) verdeMarcado
         else MaterialTheme.colorScheme.outline,
@@ -418,7 +417,7 @@ private fun SugestaoCard(
     )
     val corFundo by androidx.compose.animation.animateColorAsState(
         targetValue = if (sugestao.marcada) {
-            if (escuro) CestoAzul else NevoaTurquesa
+            if (escuro) CartaoEcom else NevoaTurquesa
         } else MaterialTheme.colorScheme.surface,
         animationSpec = specCalma(tween(Dur.P200, easing = FastOutSlowInEasing), calmo),
         label = "sug-fundo"
@@ -457,7 +456,7 @@ private fun SugestaoCard(
                 onCheckedChange = { onAlternar() },
                 colors = CheckboxDefaults.colors(
                     checkedColor = verdeMarcado,
-                    checkmarkColor = if (escuro) AzulNoite else androidx.compose.ui.graphics.Color.White
+                    checkmarkColor = if (escuro) NoiteEcom else androidx.compose.ui.graphics.Color.White
                 )
             )
             Column(modifier = Modifier.weight(1f)) {
@@ -468,16 +467,16 @@ private fun SugestaoCard(
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     // Chip de origem em pílula calma (sem pop): CONSUMO =
-                    // NevoaTurquesa/CestoAzul + Turquesa; VENCE EM 7D = Ambar + TintaMaré/AzulNoite.
+                    // NevoaTurquesa/CartaoEcom + Turquesa; VENCE EM 7D = Ambar + TintaMaré/NoiteEcom.
                     val chipFundo = if (sugestao.origem == OrigemSugestao.CONSUMO) {
-                        if (escuro) CestoAzul else NevoaTurquesa
+                        if (escuro) CartaoEcom else NevoaTurquesa
                     } else {
-                        if (escuro) AmbarClaro else AmbarFeira
+                        AmbarEcom
                     }
                     val corTextoChip = if (sugestao.origem == OrigemSugestao.CONSUMO) {
                         verdeMarcado
                     } else {
-                        if (escuro) AzulNoite else TintaMare
+                        if (escuro) NoiteEcom else TintaMare
                     }
                     Surface(
                         color = chipFundo,

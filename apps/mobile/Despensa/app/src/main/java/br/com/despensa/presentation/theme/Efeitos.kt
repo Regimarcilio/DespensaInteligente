@@ -14,7 +14,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -114,12 +113,12 @@ fun Modifier.escalaPress(inter: MutableInteractionSource, calmo: Boolean): Modif
 
 /**
  * §(d) D1 — pontilhado de banca: grade de pontos TintaMaré 4%
- * (dark: BrancoMaré 5%), raio 1dp, passo 24dp, só no fundo da tela
+ * (dark: NeveEcom 5%), raio 1dp, passo 24dp, só no fundo da tela
  * (1x por tela, nunca por card, estático, custo ~0).
  * Substitui os blobs radiais neon — mesma assinatura p/ diff mínimo.
  */
 fun Modifier.fundoFeira(escuro: Boolean): Modifier = this.drawBehind {
-    val ponto = if (escuro) BrancoMare.copy(alpha = 0.05f) else TintaMare.copy(alpha = 0.04f)
+    val ponto = if (escuro) NeveEcom.copy(alpha = 0.05f) else TintaMare.copy(alpha = 0.04f)
     val passo = 24.dp.toPx()
     val r = 1.dp.toPx()
     var y = 0f
@@ -154,19 +153,19 @@ fun atrasoStagger(index: Int): Int = minOf(index * 40, 400)
 
 /**
  * E08 — skeleton fantasma do card (24dp, thumb fantasma círculo 64dp).
- * Recolorido p/ maré (§07-paleta-v3): base TintaMaré 6%/brilho 12% light
- * (dark: BrancoMaré 8/18%). Shimmer só quando !calmo.
+ * Recolorido p/ maré v4 (§07-paleta-v4): base TintaMaré 6%/brilho 12% light
+ * (dark: NeveEcom 8/18%). Shimmer só quando !calmo.
  * Contenção: o infinito vive NESTE escopo (skeleton), nunca no item da lista.
  */
 @Composable
 fun EsqueletoCard(
     modifier: Modifier = Modifier,
     calmo: Boolean = false,
+    escuro: Boolean = false,
     descricao: String = "Carregando estoque"
 ) {
-    val escuro = isSystemInDarkTheme()
-    val base = if (escuro) BrancoMare.copy(alpha = 0.08f) else TintaMare.copy(alpha = 0.06f)
-    val brilho = if (escuro) BrancoMare.copy(alpha = 0.18f) else TintaMare.copy(alpha = 0.12f)
+    val base = if (escuro) NeveEcom.copy(alpha = 0.08f) else TintaMare.copy(alpha = 0.06f)
+    val brilho = if (escuro) NeveEcom.copy(alpha = 0.18f) else TintaMare.copy(alpha = 0.12f)
 
     val brush = if (calmo) {
         null
@@ -220,49 +219,47 @@ fun EsqueletoCard(
 }
 
 /**
- * Anel de frescor do thumb 64dp (07-paleta-v3 §c): cor por status.
- * FRESCO TurquesaProfunda · ATENÇÃO AmbarFeira · VENCEU VermelhoQueimado · SEM PetroleoSec.
- * Dark: FRESCO TurquesaClara · ATENÇÃO AmbarClaro · VENCEU VermelhoNoite · SEM AzulCinza.
+ * Anel de frescor do thumb 64dp (07-paleta-v4 §a.6): cor por status.
+ * FRESCO TurquesaProfunda · ATENÇÃO AmbarEcom · VENCEU VermelhoQueimado · SEM PetroleoSec.
+ * Dark: FRESCO MentaEcom · ATENÇÃO AmbarEcom · VENCEU VermelhoNoite · SEM MutedEcom.
  * (#0E9F8A VETADO como texto — permitido só como acento gráfico no anel 3dp;
- * aqui usamos os tokens de leitura TurquesaProfunda/TurquesaClara.)
+ * aqui usamos os tokens de leitura TurquesaProfunda/MentaEcom.)
  */
 @Composable
 fun corAnelFrescor(status: br.com.despensa.domain.StatusValidade, escuro: Boolean): Color =
     when (status) {
         br.com.despensa.domain.StatusValidade.VENCIDO ->
             if (escuro) VermelhoNoite else VermelhoQueimado
-        br.com.despensa.domain.StatusValidade.ATENCAO ->
-            if (escuro) AmbarClaro else AmbarFeira
+        br.com.despensa.domain.StatusValidade.ATENCAO -> AmbarEcom
         br.com.despensa.domain.StatusValidade.FRESCO ->
-            if (escuro) TurquesaClara else TurquesaProfunda
+            if (escuro) MentaEcom else TurquesaProfunda
         br.com.despensa.domain.StatusValidade.SEM_VALIDADE ->
-            if (escuro) AzulCinza else PetroleoSec
+            if (escuro) MutedEcom else PetroleoSec
     }
 
-/** Cor de fundo do selo pílula por status (07-paleta-v3 §c). */
+/** Cor de fundo do selo pílula por status (07-paleta-v4 §a.6). */
 @Composable
 fun corFundoSelo(status: br.com.despensa.domain.StatusValidade, escuro: Boolean): Color =
     when (status) {
         br.com.despensa.domain.StatusValidade.VENCIDO ->
             if (escuro) VermelhoNoite else VermelhoQueimado
-        br.com.despensa.domain.StatusValidade.ATENCAO ->
-            if (escuro) AmbarClaro else AmbarFeira
+        br.com.despensa.domain.StatusValidade.ATENCAO -> AmbarEcom
         br.com.despensa.domain.StatusValidade.FRESCO ->
-            if (escuro) TurquesaClara else NevoaTurquesa
+            if (escuro) MentaEcom else NevoaTurquesa
         br.com.despensa.domain.StatusValidade.SEM_VALIDADE ->
-            if (escuro) CestoAzul else Nevoa
+            if (escuro) CartaoEcom else Nevoa
     }
 
-/** Cor do texto do selo pílula por status (07-paleta-v3 §c). */
+/** Cor do texto do selo pílula por status (07-paleta-v4 §a.6). */
 @Composable
 fun corTextoSelo(status: br.com.despensa.domain.StatusValidade, escuro: Boolean): Color =
     when (status) {
         br.com.despensa.domain.StatusValidade.VENCIDO ->
-            if (escuro) AzulNoite else Color.White
+            if (escuro) NoiteEcom else Color.White
         br.com.despensa.domain.StatusValidade.ATENCAO ->
-            if (escuro) AzulNoite else TintaMare
+            if (escuro) NoiteEcom else TintaMare
         br.com.despensa.domain.StatusValidade.FRESCO ->
-            if (escuro) AzulNoite else TurquesaProfunda
+            if (escuro) NoiteEcom else TurquesaProfunda
         br.com.despensa.domain.StatusValidade.SEM_VALIDADE ->
-            if (escuro) AzulCinza else PetroleoSec
+            if (escuro) MutedEcom else PetroleoSec
     }
