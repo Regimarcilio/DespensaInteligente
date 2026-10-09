@@ -8,7 +8,7 @@ App Android offline-first que guarda sua despensa (com validade), **alerta antes
 
 *Prévia da identidade "Noite Neon" (`docs/preview.html`) — dark-first, stickers rotacionados, CTA lima. Telas do app entram aqui no MVP.*
 
-## 🗺️ Status: Sprint 0 (planejamento pronto, código a caminho)
+## 🗺️ Status: Sprint 1 entregue ✅ (estoque + busca) → Sprint 2: alertas
 
 - `docs/01-visao-e-escopo.md` · `docs/02-benchmarks.md` · `docs/SRS.md` · `docs/05-backlog.md` · `docs/07-identidade-visual.md`
 - MVP em 4 sprints → ver backlog. Stack: Kotlin + Compose + Room + Hilt (mesma do ListaCompras).
