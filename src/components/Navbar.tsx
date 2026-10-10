@@ -1,5 +1,5 @@
 import React from 'react';
-import { SunMoon, Sparkles, ShieldAlert, CheckCircle2, AlertTriangle, ShieldCheck, Smartphone } from 'lucide-react';
+import { SunMoon, Sparkles, ShieldAlert, CheckCircle2, AlertTriangle, ShieldCheck, Smartphone, Github } from 'lucide-react';
 import { ModoTema, EstoqueItem, BaixaItem, StatusValidade } from '../types';
 import { Logo } from './Logo';
 import { statusValidade } from '../domain/validade';
@@ -13,6 +13,7 @@ interface NavbarProps {
   escuro: boolean;
   onAbrirTema: () => void;
   onAbrirInstallModal?: () => void;
+  onAbrirGithubModal?: () => void;
   filtroStatus?: StatusValidade | null;
   onFiltrarStatus?: (status: StatusValidade | null) => void;
 }
@@ -25,6 +26,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   escuro,
   onAbrirTema,
   onAbrirInstallModal,
+  onAbrirGithubModal,
   filtroStatus,
   onFiltrarStatus,
 }) => {
@@ -104,6 +106,23 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
+            {/* GitHub Sync Button */}
+            {onAbrirGithubModal && (
+              <button
+                type="button"
+                onClick={onAbrirGithubModal}
+                aria-label="Sincronizar com GitHub"
+                className={`p-2 rounded-xl transition-all ${
+                  escuro
+                    ? 'text-[#F2F5FF] hover:bg-[#131B36] active:scale-95'
+                    : 'text-[#14343C] hover:bg-[#EAF3F3] active:scale-95'
+                }`}
+                title="Sincronizar com GitHub (Regimarcilio/DespensaInteligente)"
+              >
+                <Github className="w-5 h-5 stroke-[2.2]" />
+              </button>
+            )}
+
             {/* Theme Toggle Button */}
             <div className="relative">
               <button
@@ -165,7 +184,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       Em estoque
                     </span>
                     <span className="text-sm font-extrabold font-display text-[#FFB224]">
-                      R$ {formatarReais(valorTotalEstoque)}
+                      {formatarReais(valorTotalEstoque)}
                     </span>
                   </div>
                 )}

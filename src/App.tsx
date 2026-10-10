@@ -6,6 +6,7 @@ import { ListaView } from './components/lista/ListaView';
 import { EconomiaView } from './components/economia/EconomiaView';
 import { ThemeDialog } from './components/ThemeDialog';
 import { AndroidInstallModal } from './components/AndroidInstallModal';
+import { GitHubSyncModal } from './components/GitHubSyncModal';
 import { EstoqueItem, BaixaItem, ModoTema, MotivoBaixa, LocalEstoque, StatusValidade } from './types';
 import {
   loadItens,
@@ -25,6 +26,7 @@ export const App: React.FC = () => {
   const [systemDark, setSystemDark] = useState<boolean>(false);
   const [dialogoTemaAberto, setDialogoTemaAberto] = useState(false);
   const [dialogoInstallAberto, setDialogoInstallAberto] = useState(false);
+  const [dialogoGithubAberto, setDialogoGithubAberto] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [filtroStatus, setFiltroStatus] = useState<StatusValidade | null>(null);
 
@@ -102,6 +104,7 @@ export const App: React.FC = () => {
       validade: dados.validade,
       local: dados.local,
       precoRef: dados.precoRef,
+      fotoUri: dados.fotoPath,
       fotoPath: dados.fotoPath,
       createdAt: Date.now(),
     };
@@ -175,6 +178,7 @@ export const App: React.FC = () => {
           escuro={escuro}
           onAbrirTema={() => setDialogoTemaAberto(true)}
           onAbrirInstallModal={() => setDialogoInstallAberto(true)}
+          onAbrirGithubModal={() => setDialogoGithubAberto(true)}
           filtroStatus={filtroStatus}
           onFiltrarStatus={setFiltroStatus}
         />
@@ -209,6 +213,7 @@ export const App: React.FC = () => {
               escuro={escuro}
               onNotificar={exibirNotificacao}
               onRecarregar={recarregarDados}
+              onAbrirGithubModal={() => setDialogoGithubAberto(true)}
             />
           )}
         </main>
@@ -218,6 +223,7 @@ export const App: React.FC = () => {
           abaAtiva={abaAtiva}
           onMudarAba={setAbaAtiva}
           escuro={escuro}
+          totalItens={itens.length}
         />
 
         {/* Theme Dialog */}
@@ -234,6 +240,14 @@ export const App: React.FC = () => {
         {dialogoInstallAberto && (
           <AndroidInstallModal
             onFechar={() => setDialogoInstallAberto(false)}
+            escuro={escuro}
+          />
+        )}
+
+        {/* GitHub Sync Modal */}
+        {dialogoGithubAberto && (
+          <GitHubSyncModal
+            onFechar={() => setDialogoGithubAberto(false)}
             escuro={escuro}
           />
         )}
