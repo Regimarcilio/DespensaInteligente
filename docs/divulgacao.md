@@ -23,9 +23,9 @@
 - 15–22s: notificação "use hoje" + baixa com 1 gesto.
 - 22–30s: "gera a lista sozinha" + export + CTA "link na bio, deixa a ⭐".
 
-## 5. Checklist do repo (feito/pendente)
+## 5. Checklist do repo (verificado em 09/10)
 - [x] README vitrine + screenshot + CTA de star
-- [x] Topics: `android kotlin jetpack-compose room food-waste offline-first open-source`
-- [ ] Imagem social do repo (Settings → Social preview → subir hero.png) — manual
-- [ ] Fixar o repo no perfil (Pin) — manual
-- [ ] Responder toda issue em <48h (sinal de projeto vivo p/ quem visita)
+- [x] Topics: `android kotlin jetpack-compose room food-waste offline-first open-source portuguese`
+- [x] Zero issues abertas (resposta <48h em dia)
+- [ ] Imagem social do repo (Settings → Social preview → subir hero.png) — manual, 1 min
+- [ ] Fixar o repo no perfil (2 slots livres) — manual, 30s
