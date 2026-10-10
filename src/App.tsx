@@ -5,7 +5,7 @@ import { EstoqueView } from './components/estoque/EstoqueView';
 import { ListaView } from './components/lista/ListaView';
 import { EconomiaView } from './components/economia/EconomiaView';
 import { ThemeDialog } from './components/ThemeDialog';
-import { EstoqueItem, BaixaItem, ModoTema, MotivoBaixa, LocalEstoque } from './types';
+import { EstoqueItem, BaixaItem, ModoTema, MotivoBaixa, LocalEstoque, StatusValidade } from './types';
 import {
   loadItens,
   saveItens,
@@ -24,6 +24,7 @@ export const App: React.FC = () => {
   const [systemDark, setSystemDark] = useState<boolean>(false);
   const [dialogoTemaAberto, setDialogoTemaAberto] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [filtroStatus, setFiltroStatus] = useState<StatusValidade | null>(null);
 
   // Recarregar dados
   const recarregarDados = () => {
@@ -163,21 +164,26 @@ export const App: React.FC = () => {
       }`}
     >
       <div className="max-w-md mx-auto min-h-screen flex flex-col relative shadow-xl">
-        {/* Top App Bar */}
+        {/* Top App Bar with creative header */}
         <Navbar
           abaAtiva={abaAtiva}
-          totalItens={itens.length}
+          itens={itens}
+          baixas={baixas}
           modoTema={modoTema}
           escuro={escuro}
           onAbrirTema={() => setDialogoTemaAberto(true)}
+          filtroStatus={filtroStatus}
+          onFiltrarStatus={setFiltroStatus}
         />
 
         {/* Main Content Area */}
-        <main className="flex-1 px-4 pt-3">
+        <main className="flex-1 px-4 pt-1">
           {abaAtiva === 'ESTOQUE' && (
             <EstoqueView
               itens={itens}
               escuro={escuro}
+              filtroStatus={filtroStatus}
+              onLimparFiltroStatus={() => setFiltroStatus(null)}
               onSalvarItem={handleSalvarItem}
               onRemoverItem={handleRemoverItem}
               onDarBaixa={handleDarBaixa}

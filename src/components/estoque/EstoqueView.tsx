@@ -8,6 +8,8 @@ import { DialogoCadastro } from './DialogoCadastro';
 interface EstoqueViewProps {
   itens: EstoqueItem[];
   escuro: boolean;
+  filtroStatus?: StatusValidade | null;
+  onLimparFiltroStatus?: () => void;
   onSalvarItem: (dados: {
     nome: string;
     quantidade: number;
@@ -24,6 +26,8 @@ interface EstoqueViewProps {
 export const EstoqueView: React.FC<EstoqueViewProps> = ({
   itens,
   escuro,
+  filtroStatus,
+  onLimparFiltroStatus,
   onSalvarItem,
   onRemoverItem,
   onDarBaixa,
@@ -49,7 +53,8 @@ export const EstoqueView: React.FC<EstoqueViewProps> = ({
       !busca.trim() ||
       item.nome.toLowerCase().includes(busca.toLowerCase().trim());
     const matchLocal = filtroLocal === null || item.local === filtroLocal;
-    return matchBusca && matchLocal;
+    const matchStatus = filtroStatus == null || statusValidade(item.validade, agora) === filtroStatus;
+    return matchBusca && matchLocal && matchStatus;
   });
 
   const getStatusBadge = (status: StatusValidade) => {
@@ -140,9 +145,21 @@ export const EstoqueView: React.FC<EstoqueViewProps> = ({
         })}
       </div>
 
-      {/* Quick guide */}
+      {/* Quick guide & active status filter */}
       <div className="flex items-center justify-between text-xs mb-3 px-1 font-medium text-[#47626E] dark:text-[#9AA4C7]">
-        <span>{itensFiltrados.length} {itensFiltrados.length === 1 ? 'item' : 'itens'} encontrados</span>
+        <div className="flex items-center gap-2">
+          <span>{itensFiltrados.length} {itensFiltrados.length === 1 ? 'item' : 'itens'} encontrados</span>
+          {filtroStatus && (
+            <button
+              type="button"
+              onClick={onLimparFiltroStatus}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#FF8A00]/15 text-[#FF8A00] hover:bg-[#FF8A00]/25 transition-all"
+            >
+              <span>{filtroStatus}</span>
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
         <span>Ações: Consumir / Descartar</span>
       </div>
 
