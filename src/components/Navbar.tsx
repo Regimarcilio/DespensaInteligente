@@ -97,12 +97,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 onClick={onAbrirInstallModal}
-                aria-label="Instalar no celular Android"
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-[#FF8A00] text-[#14343C] shadow-sm hover:brightness-105 active:scale-95 transition-all"
-                title="Usar como app no seu Android"
+                aria-label="Baixar APK ou Instalar no Android"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-extrabold bg-[#FF8A00] text-[#14343C] shadow-sm hover:brightness-105 active:scale-95 transition-all"
+                title="Baixar APK no GitHub ou instalar no Android"
               >
                 <Smartphone className="w-3.5 h-3.5 stroke-[2.5]" />
-                <span className="hidden xs:inline">Instalar</span>
+                <span>APK / Instalar</span>
               </button>
             )}
 

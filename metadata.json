@@ -1,0 +1,7 @@
+{
+  "name": "Despensa Inteligente",
+  "description": "App offline-first que guarda sua despensa com validade, semáforo de frescor, lista de reposição automática e controle de economia em R$.",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

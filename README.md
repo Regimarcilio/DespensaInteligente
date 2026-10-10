@@ -17,7 +17,22 @@ App Android **offline-first** que guarda sua despensa com validade, **avisa ante
 
 ## 🗺️ Status: MVP pronto ✅ → Sprint 5: barcode + sync
 
-`docs/` tem visão, benchmarks, SRS, backlog e identidade. APK pronto: `Despensa-v0.8-ecom-debug.apk`.
+`docs/` tem visão, benchmarks, SRS, backlog e identidade.
+
+## 📱 Como Baixar o APK para Instalação no Celular
+
+O APK pode ser baixado e instalado diretamente no seu Android:
+
+1. **Baixar o APK pronto nas Releases:**  
+   Acesse a seção [GitHub Releases](https://github.com/Regimarcilio/DespensaInteligente/releases) e baixe o arquivo `Despensa-v0.8-debug.apk` disponível em **Assets**.
+2. **Instalação no Android:**  
+   Ao terminar o download, abra o arquivo no celular. Se solicitado, autorize "Permitir instalação desta fonte" nas configurações do Android e confirme a instalação.
+3. **Compilação Automática (GitHub Actions):**  
+   O repositório conta com workflow em `.github/workflows/build-apk.yml`, que compila automaticamente o APK Kotlin/Compose em `apps/mobile/Despensa` e disponibiliza para download.
+4. **Instalação PWA (Sem APK):**  
+   Você também pode abrir a versão Web no Chrome do Android e clicar em "Instalar" para adicionar à tela inicial sem precisar gerenciar arquivos APK.
+
+Veja o guia detalhado em [`docs/como-baixar-e-gerar-apk.md`](docs/como-baixar-e-gerar-apk.md).
 
 ## 🤝 Contribuir
 

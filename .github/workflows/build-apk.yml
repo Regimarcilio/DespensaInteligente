@@ -1,0 +1,60 @@
+name: Build e Publicar APK Android
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'apps/mobile/**'
+      - '.github/workflows/build-apk.yml'
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch: # Permite disparar manualmente no GitHub Actions
+  release:
+    types: [ published, created ]
+
+permissions:
+  contents: write
+
+jobs:
+  build-android-apk:
+    name: Compilar APK Android
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Conceder permissão de execução ao gradlew
+        run: chmod +x apps/mobile/Despensa/gradlew
+
+      - name: Compilar APK de Debug
+        working-directory: apps/mobile/Despensa
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Renomear e preparar APK para distribuição
+        run: |
+          mkdir -p build-output
+          cp apps/mobile/Despensa/app/build/outputs/apk/debug/app-debug.apk build-output/Despensa-v0.8-debug.apk
+          echo "APK gerado com sucesso em build-output/Despensa-v0.8-debug.apk"
+
+      - name: Disponibilizar APK nos Artefatos do GitHub Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: Despensa-v0.8-debug-apk
+          path: build-output/Despensa-v0.8-debug.apk
+          retention-days: 90
+
+      - name: Publicar APK no GitHub Releases (quando houver release ou tag)
+        if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build-output/Despensa-v0.8-debug.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

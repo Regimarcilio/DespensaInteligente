@@ -70,19 +70,34 @@ export const GitHubSyncModal: React.FC<GitHubSyncModalProps> = ({
           no Android Studio.
         </p>
 
-        {/* Link direto */}
-        <a
-          href={repoUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-between p-3 mb-4 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 text-xs font-semibold hover:opacity-90 transition-opacity"
-        >
-          <div className="flex items-center gap-2 truncate">
-            <GitBranch className="w-4 h-4 text-[#0B6E5F] dark:text-[#6EE7B7] shrink-0" />
-            <span className="truncate">Abrir repositório no GitHub</span>
-          </div>
-          <ExternalLink className="w-3.5 h-3.5 shrink-0 opacity-60" />
-        </a>
+        {/* Link direto repositório e releases */}
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          <a
+            href={repoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 text-xs font-semibold hover:opacity-90 transition-opacity"
+          >
+            <div className="flex items-center gap-1.5 truncate">
+              <GitBranch className="w-4 h-4 text-[#0B6E5F] dark:text-[#6EE7B7] shrink-0" />
+              <span className="truncate">Repositório</span>
+            </div>
+            <ExternalLink className="w-3.5 h-3.5 shrink-0 opacity-60" />
+          </a>
+
+          <a
+            href={`${repoUrl}/releases`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between p-3 rounded-xl bg-[#FF8A00]/10 border border-[#FF8A00]/30 text-xs font-bold text-[#FF8A00] hover:brightness-110 transition-all"
+          >
+            <div className="flex items-center gap-1.5 truncate">
+              <Smartphone className="w-4 h-4 shrink-0" />
+              <span className="truncate">Releases (APK)</span>
+            </div>
+            <ExternalLink className="w-3.5 h-3.5 shrink-0 opacity-80" />
+          </a>
+        </div>
 
         {/* Passos para sincronizar via Git */}
         <div className="space-y-3 mb-5 text-xs">
