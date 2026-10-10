@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#0B6E5F"/>
+      <stop offset="100%" stopColor="#084E43"/>
+    </linearGradient>
+    <linearGradient id="cubeTeal" x1="64" y1="64" x2="448" y2="448" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#0E9F8A"/>
+      <stop offset="60%" stopColor="#0B6E5F"/>
+      <stop offset="100%" stopColor="#084E43"/>
+    </linearGradient>
+    <linearGradient id="leafGrad" x1="128" y1="96" x2="384" y2="352" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#6EE7B7"/>
+      <stop offset="100%" stopColor="#38E1FF"/>
+    </linearGradient>
+    <linearGradient id="amberGrad" x1="208" y1="128" x2="368" y2="288" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#FFB224"/>
+      <stop offset="100%" stopColor="#FF8A00"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Solid rounded background for Android app icon -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+
+  <!-- Hexagonal Isometric Pantry Vault Cube -->
+  <path d="M256 52 L432 153.6 V358.4 L256 460 L80 358.4 V153.6 Z" fill="url(#cubeTeal)"/>
+
+  <!-- Top Facet (Ice Cap) -->
+  <path d="M256 68 L408 156 L256 244 L104 156 Z" fill="#FFFFFF" fill-opacity="0.32"/>
+
+  <!-- Left Facet -->
+  <path d="M104 172 L248 256 V436 L104 352 Z" fill="#000000" fill-opacity="0.22"/>
+
+  <!-- Right Facet -->
+  <path d="M264 256 L408 172 V352 L264 436 Z" fill="#FFFFFF" fill-opacity="0.12"/>
+
+  <!-- Preserved Fresh Leaf -->
+  <path d="M256 164 C256 164 312 192 320 252 C328 312 276 356 256 356 C236 356 184 312 192 252 C200 192 256 164 256 164 Z" fill="url(#leafGrad)"/>
+
+  <!-- Leaf Central Stem -->
+  <path d="M256 196 V332" stroke="#0B6E5F" stroke-width="16" stroke-linecap="round"/>
+
+  <!-- Golden Economy Sparkle -->
+  <circle cx="312" cy="188" r="36" fill="url(#amberGrad)"/>
+  <path d="M312 140 V156 M312 220 V236 M264 188 H280 M344 188 H360" stroke="#FFB224" stroke-width="12" stroke-linecap="round"/>
+
+  <!-- Glint on edge -->
+  <path d="M256 68 L104 156" stroke="#6EE7B7" stroke-width="12" stroke-linecap="round" stroke-opacity="0.8"/>
+</svg>
