@@ -148,6 +148,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -166,6 +167,40 @@ val LOCAIS_FILTRO: List<Pair<String, LocalEstoque?>> = listOf(
     "Despensa" to LocalEstoque.DESPENSA
 )
 
+/**
+ * Filtro por status (port de Navbar.tsx/EstoqueView.tsx web 5d974e1, issue #6).
+ * Null = Todos. Contadores vêm de [ContadoresValidade] (pós busca+local,
+ * pré status) para combinar com os filtros existentes.
+ */
+val FILTROS_STATUS: List<Pair<String, StatusValidade?>> = listOf(
+    "Todos" to null,
+    "Frescos" to StatusValidade.FRESCO,
+    "Atenção" to StatusValidade.ATENCAO,
+    "Vencidos" to StatusValidade.VENCIDO
+)
+
+/** Contadores do semáforo sobre a lista observada (busca+local aplicados). */
+data class ContadoresValidade(
+    val frescos: Int = 0,
+    val atencao: Int = 0,
+    val vencidos: Int = 0
+)
+
+fun contarValidade(itens: List<EstoqueEntity>, agora: Long = System.currentTimeMillis()): ContadoresValidade {
+    var f = 0
+    var a = 0
+    var v = 0
+    itens.forEach {
+        when (statusValidade(it.validade, agora)) {
+            StatusValidade.FRESCO -> f++
+            StatusValidade.ATENCAO -> a++
+            StatusValidade.VENCIDO -> v++
+            StatusValidade.SEM_VALIDADE -> Unit
+        }
+    }
+    return ContadoresValidade(f, a, v)
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class EstoqueViewModel @Inject constructor(
@@ -174,17 +209,39 @@ class EstoqueViewModel @Inject constructor(
 ) : ViewModel() {
     private val busca = MutableStateFlow("")
     private val filtroLocal = MutableStateFlow<LocalEstoque?>(null)
+    private val filtroStatus = MutableStateFlow<StatusValidade?>(null)
 
     val buscaAtual: StateFlow<String> = busca
     val filtroAtual: StateFlow<LocalEstoque?> = filtroLocal
+    val filtroStatusAtual: StateFlow<StatusValidade?> = filtroStatus
 
+    // Base observada do DAO (busca + local, sem migration). O filtro de
+    // status é aplicado EM MEMÓRIA sobre ela (port do matchStatus web).
     val itens: StateFlow<List<EstoqueEntity>> =
         combine(busca, filtroLocal) { b, l -> b to l }
             .flatMapLatest { (b, l) -> dao.observar(b.trim(), l) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /** Semáforo sobre a lista observada (pós busca+local, pré status). */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val contadores: StateFlow<ContadoresValidade> =
+        itens.map { contarValidade(it) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ContadoresValidade())
+
+    /** Lista visível = observada + status em memória (combina os 3 filtros). */
+    val itensVisiveis: StateFlow<List<EstoqueEntity>> =
+        combine(itens, filtroStatus) { lista, st ->
+            if (st == null) lista
+            else {
+                val agora = System.currentTimeMillis()
+                lista.filter { statusValidade(it.validade, agora) == st }
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     fun buscar(texto: String) { busca.value = texto }
     fun filtrar(local: LocalEstoque?) { filtroLocal.value = local }
+    fun filtrarStatus(status: StatusValidade?) { filtroStatus.value = status }
+    fun limparFiltroStatus() { filtroStatus.value = null }
 
     fun salvar(
         nome: String,
@@ -294,9 +351,12 @@ private fun rotuloStatus(s: StatusValidade): String = when (s) {
 
 @Composable
 fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel(), escuro: Boolean = false) {
-    val itens by vm.itens.collectAsState()
+    val brutos by vm.itens.collectAsState()
+    val itens by vm.itensVisiveis.collectAsState()
     val busca by vm.buscaAtual.collectAsState()
     val filtro by vm.filtroAtual.collectAsState()
+    val filtroStatus by vm.filtroStatusAtual.collectAsState()
+    val contadores by vm.contadores.collectAsState()
     var dialogoAberto by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
     val escopo = rememberCoroutineScope()
@@ -310,7 +370,8 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel(), escuro: Boolean = fals
         delay(600)
         frio = false
     }
-    val mostrandoSkeleton = frio && itens.isEmpty() && busca.isBlank() && filtro == null
+    val mostrandoSkeleton = frio && itens.isEmpty() && brutos.isEmpty() &&
+        busca.isBlank() && filtro == null && filtroStatus == null
 
     // E04 — marca ids já animados: scroll de volta não re-anima.
     val vistos = remember { mutableStateMapOf<String, Boolean>() }
@@ -403,7 +464,11 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel(), escuro: Boolean = fals
                             )
                         },
                         interactionSource = interChip,
-                        modifier = Modifier.escalaPress(interChip, calmo),
+                        modifier = Modifier
+                            .escalaPress(interChip, calmo)
+                            .semantics {
+                                contentDescription = "Filtrar local: $rotulo"
+                            },
                         shape = CircleShape,
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = TurquesaProfunda,
@@ -423,6 +488,86 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel(), escuro: Boolean = fals
                 }
             }
             Spacer(Modifier.height(8.dp))
+            // Filtro por status (port web 5d974e1): Todos/Frescos/Atenção/
+            // Vencidos com contadores, combinando com busca + local.
+            // Contadores vêm da lista observada (pós busca+local).
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(FILTROS_STATUS) { (rotulo, status) ->
+                    val interChip = remember("status-$rotulo") { MutableInteractionSource() }
+                    val sel = filtroStatus == status
+                    val totalTodos = brutos.size
+                    val qtd = when (status) {
+                        null -> totalTodos
+                        StatusValidade.FRESCO -> contadores.frescos
+                        StatusValidade.ATENCAO -> contadores.atencao
+                        StatusValidade.VENCIDO -> contadores.vencidos
+                        StatusValidade.SEM_VALIDADE -> brutos.count {
+                            statusValidade(it.validade, System.currentTimeMillis()) ==
+                                StatusValidade.SEM_VALIDADE
+                        }
+                    }
+                    val textoChip = "$rotulo ($qtd)"
+                    val chipFundo = if (escuro) CartaoEcom else NeveEcom
+                    val chipBorda = if (escuro) BordaNoiteAzul else LinhaAzul
+                    FilterChip(
+                        selected = sel,
+                        onClick = { vm.filtrarStatus(if (sel) null else status) },
+                        label = {
+                            Text(
+                                textoChip,
+                                maxLines = 1,
+                                color = if (sel) Color.White else if (escuro) MutedEcom else PetroleoSec
+                            )
+                        },
+                        interactionSource = interChip,
+                        modifier = Modifier
+                            .escalaPress(interChip, calmo)
+                            .semantics {
+                                contentDescription = "Filtrar por status: $rotulo, $qtd itens"
+                            },
+                        shape = CircleShape,
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = TurquesaProfunda,
+                            selectedLabelColor = Color.White,
+                            containerColor = chipFundo
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = sel,
+                            borderColor = chipBorda,
+                            selectedBorderColor = TurquesaProfunda,
+                            disabledBorderColor = chipBorda,
+                            borderWidth = 1.dp,
+                            selectedBorderWidth = 1.dp
+                        )
+                    )
+                }
+            }
+            // Faixa do filtro ativo (eco do chip removível web em EstoqueView).
+            if (filtroStatus != null) {
+                Spacer(Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "${itens.size} ${if (itens.size == 1) "item" else "itens"} com filtro " +
+                            when (filtroStatus) {
+                                StatusValidade.FRESCO -> "FRESCOS"
+                                StatusValidade.ATENCAO -> "ATENÇÃO"
+                                StatusValidade.VENCIDO -> "VENCIDOS"
+                                else -> ""
+                            },
+                        style = MaterialTheme.typography.labelMedium,
+                        color = LaranjaEcom,
+                        modifier = Modifier.weight(1f)
+                    )
+                    TextButton(
+                        onClick = vm::limparFiltroStatus,
+                        modifier = Modifier.semantics {
+                            contentDescription = "Limpar filtro de status"
+                        }
+                    ) { Text("Limpar") }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
             if (mostrandoSkeleton) {
                 // E08 — 3 fantasmas com shimmer (estáticos com calmo).
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -432,17 +577,36 @@ fun EstoqueScreen(vm: EstoqueViewModel = hiltViewModel(), escuro: Boolean = fals
                 }
             } else if (itens.isEmpty()) {
                 Column(modifier = Modifier.padding(vertical = 24.dp)) {
+                    val filtrando = busca.isNotBlank() || filtro != null || filtroStatus != null
                     Text(
-                        "Sua feira está vazia 🧺",
+                        if (!filtrando) "Sua feira está vazia 🧺"
+                        else "Nada neste filtro 🧺",
                         style = MaterialTheme.typography.titleMedium
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        if (busca.isBlank()) "Toque em Adicionar para cadastrar."
-                        else "Nada encontrado para \"$busca\".",
+                        when {
+                            !filtrando -> "Toque em Adicionar para cadastrar."
+                            busca.isNotBlank() -> "Nada encontrado para \"$busca\"."
+                            filtroStatus != null -> "Nenhum item neste status. Toque em Limpar."
+                            else -> "Nenhum item neste local."
+                        },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    if (filtrando) {
+                        Spacer(Modifier.height(8.dp))
+                        TextButton(
+                            onClick = {
+                                vm.buscar("")
+                                vm.filtrar(null)
+                                vm.limparFiltroStatus()
+                            },
+                            modifier = Modifier.semantics {
+                                contentDescription = "Limpar todos os filtros"
+                            }
+                        ) { Text("Limpar filtros") }
+                    }
                 }
             } else {
                 LazyColumn(

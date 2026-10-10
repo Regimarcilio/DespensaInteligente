@@ -69,6 +69,8 @@ import br.com.despensa.presentation.economia.EconomiaScreen
 import br.com.despensa.presentation.economia.EconomiaViewModel
 import br.com.despensa.presentation.estoque.EstoqueScreen
 import br.com.despensa.presentation.estoque.EstoqueViewModel
+import br.com.despensa.presentation.header.Logo
+import br.com.despensa.presentation.header.PilulaStatus
 import br.com.despensa.presentation.lista.ListaScreen
 import br.com.despensa.presentation.lista.ListaViewModel
 import br.com.despensa.presentation.notif.PedidoPermissaoNotificacao
@@ -117,17 +119,19 @@ class MainActivity : ComponentActivity() {
                 var mostrarDialogoTema by rememberSaveable { mutableStateOf(false) }
                 val vmEstoque: EstoqueViewModel = hiltViewModel()
                 val itens by vmEstoque.itens.collectAsState()
+                val contadores by vmEstoque.contadores.collectAsState()
                 val calmo = lembrarMovimentoReduzido()
                 val escopo = rememberCoroutineScope()
+
+                // §(e) + issue #6 — header com marca Logo (port Logo.tsx web)
+                // + pílula de status (port Navbar.tsx). Translúcido surface 95%
+                // como aproximação do glass (sem blur real). Título texto puro
+                // sai; subtítulo por aba mantém AnimatedContent 200ms.
 
                 // §(e) — header SÓLIDO maré: light BrancoMaré, dark NoiteEcom +
                 // Divider 1dp. Título Fraunces Bold (typography.titleLarge),
                 // sem glow. Subtítulo mantém AnimatedContent 200ms.
-                val tituloAba = when (aba) {
-                    Aba.ESTOQUE -> "Despensa"
-                    Aba.LISTA -> "Lista"
-                    Aba.ECONOMIA -> "R$"
-                }
+                // issue #6: tituloAba textual sai — Logo é a marca em toda aba.
                 val subtituloAba = when (aba) {
                     Aba.ESTOQUE ->
                         "${itens.size} ${if (itens.size == 1) "item" else "itens"} em estoque"
@@ -147,11 +151,7 @@ class MainActivity : ComponentActivity() {
                             TopAppBar(
                                 title = {
                                     Column(modifier = Modifier.fillMaxWidth()) {
-                                        Text(
-                                            tituloAba,
-                                            style = MaterialTheme.typography.titleLarge,
-                                            color = MaterialTheme.colorScheme.onBackground
-                                        )
+                                        Logo(escuro = escuro)
                                         AnimatedContent(
                                             targetState = subtituloAba,
                                             transitionSpec = {
@@ -172,7 +172,15 @@ class MainActivity : ComponentActivity() {
                                 },
                                 // §b.2 — ação de tema à direita do título.
                                 actions = {
-                                    Box(contentAlignment = Alignment.Center) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        PilulaStatus(
+                                            vencidos = contadores.vencidos,
+                                            atencao = contadores.atencao,
+                                            escuro = escuro,
+                                            calmo = calmo
+                                        )
+                                        Spacer(Modifier.width(4.dp))
+                                        Box(contentAlignment = Alignment.Center) {
                                         IconButton(
                                             onClick = { mostrarDialogoTema = true },
                                             modifier = Modifier.semantics {
@@ -196,10 +204,13 @@ class MainActivity : ComponentActivity() {
                                                     .background(LaranjaEcom, CircleShape)
                                             )
                                         }
+                                        }
                                     }
                                 },
                                 colors = TopAppBarDefaults.topAppBarColors(
-                                    containerColor = MaterialTheme.colorScheme.background
+                                    // issue #6: translúcido surface 95% como
+                                    // aproximação do glass web (bg-[#FFFBF4]/95).
+                                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
                                 )
                             )
                             HorizontalDivider(
